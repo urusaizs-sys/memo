@@ -7,5 +7,16 @@
 数据图
 
 https://gihyo.jp/article/2026/04/AI-agent-development01#gh5GvCE7LD
-
 https://qiita.com/nogataka/items/95efda0c7c9ea2405139
+
+01 装上tmux
+brew install tux
+02 加teammateMode
+"teammateMode": "tux",
+
+HAgent Teams.
+"env": {
+"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+
+
+
