@@ -1,0 +1,427 @@
+# 中日双语会议转录整理系统 · Windows 安装手册
+
+> 目标：将会议 MP3 → 说话人分离 → 中日双语转录 → Claude 整理成结构化会议纪要  
+> 环境：Windows 10 / 11（64位）  
+> 难度：中等，全程约 60–90 分钟
+
+-----
+
+## 系统要求
+
+|项目       |最低                              |推荐                    |
+|---------|--------------------------------|----------------------|
+|操作系统     |Windows 10 (Build 19041+)       |Windows 11            |
+|RAM      |8 GB                            |16 GB                 |
+|硬盘空间     |10 GB                           |20 GB                 |
+|网络       |必须（用于 Claude API）               |稳定宽带                  |
+|GPU      |不需要（CPU 模式）                     |NVIDIA GPU（提速 Whisper）|
+|Claude 账号|Pro / Max / Team / Enterprise 任一|—                     |
+
+-----
+
+## 整体架构
+
+```
+meeting.mp3
+    │
+    ▼
+[pyannote.audio]  ← 说话人分离（谁在说话）
+    │
+    ▼
+[Whisper large-v3]  ← 语音转文字（自动识别中/日文）
+    │
+    ▼
+[Claude Code + Claude API]  ← 整理为结构化会议纪要
+    │
+    ▼
+meeting_minutes.md / .docx
+```
+
+-----
+
+## 第一步：安装 Claude Code
+
+### 1-1 先决条件：安装 Git for Windows
+
+Claude Code 在 Windows 上需要 Git Bash 才能运行。
+
+1. 前往 https://git-scm.com/download/win 下载安装程序
+1. 运行安装程序，全部使用**默认选项**即可
+1. 安装完成后，**重启终端**
+
+验证：打开 PowerShell，输入：
+
+```powershell
+git --version
+# 应输出类似：git version 2.x.x
+```
+
+### 1-2 安装 Claude Code
+
+打开 **PowerShell**（无需管理员权限），运行：
+
+```powershell
+irm https://claude.ai/install.ps1 | iex
+```
+
+安装完成后，**关闭并重新打开终端**，然后验证：
+
+```powershell
+claude --version
+claude doctor   # 检查安装状态
+```
+
+### 1-3 登录认证
+
+```powershell
+claude
+```
+
+首次运行会自动打开浏览器，用你的 Claude 账号完成 OAuth 授权即可。
+
+> ⚠️ **注意**：免费账号无法使用 Claude Code，需要 Pro 或以上套餐。
+
+-----
+
+## 第二步：安装 Python 环境
+
+Whisper 和 pyannote 都需要 Python。
+
+### 2-1 安装 Python 3.11
+
+1. 前往 https://www.python.org/downloads/
+1. 下载 **Python 3.11.x**（推荐 3.11，与 pyannote 兼容性最好）
+1. 安装时**务必勾选** `Add Python to PATH`
+1. 点击 `Install Now`
+
+验证：
+
+```powershell
+python --version   # 应显示 Python 3.11.x
+pip --version
+```
+
+### 2-2 创建虚拟环境（推荐）
+
+```powershell
+# 在你的工作目录中创建虚拟环境
+cd C:\Users\你的用户名\Documents
+python -m venv meeting-env
+
+# 激活虚拟环境
+meeting-env\Scripts\activate
+
+# 激活后，命令行前面会出现 (meeting-env)
+```
+
+> 💡 每次使用前都需要激活虚拟环境：`meeting-env\Scripts\activate`
+
+-----
+
+## 第三步：安装 Whisper
+
+Whisper 是 OpenAI 开源的语音识别模型，支持中日文混合转录。
+
+### 3-1 安装 PyTorch（CPU 版本）
+
+```powershell
+pip install torch torchvision torchaudio
+```
+
+> 如果你有 NVIDIA GPU，请前往 https://pytorch.org 选择对应的 CUDA 版本安装，转录速度可提升 5–10 倍。
+
+### 3-2 安装 openai-whisper
+
+```powershell
+pip install openai-whisper
+```
+
+### 3-3 安装 ffmpeg（Whisper 依赖）
+
+Whisper 需要 ffmpeg 来处理音频文件。
+
+1. 前往 https://ffmpeg.org/download.html → Windows builds → 下载 `ffmpeg-release-essentials.zip`
+1. 解压到 `C:\ffmpeg\`
+1. 将 `C:\ffmpeg\bin` 添加到系统 PATH：
+- 搜索”编辑系统环境变量” → 环境变量 → 系统变量 → Path → 新建 → 输入 `C:\ffmpeg\bin`
+1. 重启 PowerShell
+
+验证：
+
+```powershell
+ffmpeg -version   # 应显示版本信息
+whisper --help    # 应显示 Whisper 帮助
+```
+
+### 3-4 测试 Whisper（中日双语）
+
+```powershell
+whisper meeting.mp3 --model large-v3 --language None --output_format txt
+```
+
+- `--model large-v3`：最准确的模型（约 3GB，首次运行自动下载）
+- `--language None`：自动检测语言，不强制指定单一语言
+
+> ⏱️ large-v3 首次下载约需 10 分钟（3GB），CPU 转录 1 小时录音约需 30–60 分钟。
+
+-----
+
+## 第四步：安装 pyannote.audio（说话人分离）
+
+pyannote 可以识别”谁在什么时候说话”，对多人会议很重要。
+
+### 4-1 申请 HuggingFace Token
+
+pyannote 的说话人分离模型需要免费授权：
+
+1. 前往 https://huggingface.co 注册账号
+1. 前往 https://hf.co/pyannote/speaker-diarization-3.1 → 点击 “Agree and access repository”
+1. 前往 https://hf.co/settings/tokens → 创建一个 `Read` 权限的 Token
+1. 复制并保存这个 Token（类似 `hf_xxxxxxxxxx`）
+
+### 4-2 安装 pyannote
+
+```powershell
+pip install pyannote.audio
+```
+
+### 4-3 设置 Token 环境变量
+
+```powershell
+# 临时设置（当前会话有效）
+$env:HF_TOKEN = "hf_你的token"
+
+# 永久设置（推荐）
+[System.Environment]::SetEnvironmentVariable("HF_TOKEN", "hf_你的token", "User")
+```
+
+-----
+
+## 第五步：安装项目依赖
+
+```powershell
+pip install anthropic        # Claude API Python SDK
+pip install pydub            # 音频文件处理
+pip install python-dotenv    # 管理 API 密钥
+```
+
+-----
+
+## 第六步：配置 Claude API Key
+
+如果你使用 Claude Code 直接运行（通过 `claude` 命令），无需额外配置 API Key。
+
+如果你要在 Python 脚本中直接调用 Claude API：
+
+1. 前往 https://console.anthropic.com → API Keys → 创建新 Key
+1. 创建 `.env` 文件：
+
+```powershell
+# 在工作目录创建 .env 文件
+notepad .env
+```
+
+写入：
+
+```
+ANTHROPIC_API_KEY=sk-ant-你的key
+HF_TOKEN=hf_你的token
+```
+
+-----
+
+## 第七步：完整流程脚本
+
+将以下内容保存为 `transcribe_meeting.py`，放在你的工作目录中：
+
+```python
+import os
+import sys
+import whisper
+import json
+from anthropic import Anthropic
+from pyannote.audio import Pipeline
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def transcribe_with_diarization(audio_path: str) -> str:
+    """说话人分离 + 语音转文字"""
+    
+    print("🔍 步骤 1/3：说话人分离中...")
+    hf_token = os.getenv("HF_TOKEN")
+    pipeline = Pipeline.from_pretrained(
+        "pyannote/speaker-diarization-3.1",
+        use_auth_token=hf_token
+    )
+    diarization = pipeline(audio_path)
+    
+    print("📝 步骤 2/3：语音转文字中（large-v3 模型）...")
+    model = whisper.load_model("large-v3")
+    result = model.transcribe(audio_path, language=None)  # 自动检测中/日文
+    
+    # 将说话人信息与转录文本合并
+    print("🔗 步骤 3/3：合并说话人与文字...")
+    segments = result["segments"]
+    transcript_lines = []
+    
+    for segment in segments:
+        start = segment["start"]
+        end = segment["end"]
+        text = segment["text"].strip()
+        
+        # 找到这个时间段的说话人
+        speaker = "未知"
+        for turn, _, spk in diarization.itertracks(yield_label=True):
+            if turn.start <= start and turn.end >= end:
+                speaker = spk
+                break
+        
+        timestamp = f"[{int(start//60):02d}:{int(start%60):02d}]"
+        transcript_lines.append(f"{timestamp} {speaker}: {text}")
+    
+    return "\n".join(transcript_lines)
+
+
+def generate_minutes(transcript: str) -> str:
+    """用 Claude 整理会议纪要"""
+    
+    print("🤖 正在用 Claude 整理会议纪要...")
+    client = Anthropic()
+    
+    prompt = f"""以下是一段中日双语会议的转录文字（含说话人标注）。
+
+请整理成结构化的会议纪要，要求：
+1. 输出语言：中文
+2. 保留专业术语原文（中文和日文术语均保留）
+3. 结构包含：会议概要、主要议题、关键讨论点、决策事项、待办行动项（含负责人）
+4. 如有日文内容，翻译成中文后摘要
+
+转录内容：
+---
+{transcript}
+---
+
+请输出 Markdown 格式的会议纪要。"""
+
+    message = client.messages.create(
+        model="claude-opus-4-6",
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}]
+    )
+    
+    return message.content[0].text
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("用法：python transcribe_meeting.py meeting.mp3")
+        sys.exit(1)
+    
+    audio_path = sys.argv[1]
+    output_path = audio_path.replace(".mp3", "_会议纪要.md")
+    
+    # 转录
+    transcript = transcribe_with_diarization(audio_path)
+    
+    # 保存原始转录
+    transcript_path = audio_path.replace(".mp3", "_转录原文.txt")
+    with open(transcript_path, "w", encoding="utf-8") as f:
+        f.write(transcript)
+    print(f"✅ 转录原文已保存：{transcript_path}")
+    
+    # 生成会议纪要
+    minutes = generate_minutes(transcript)
+    
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(minutes)
+    print(f"✅ 会议纪要已保存：{output_path}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### 使用方式
+
+```powershell
+# 激活虚拟环境
+meeting-env\Scripts\activate
+
+# 运行转录
+python transcribe_meeting.py C:\路径\到\meeting.mp3
+```
+
+-----
+
+## 在 Claude Code 中使用
+
+进入你的工作目录，启动 Claude Code：
+
+```powershell
+cd C:\Users\你的用户名\Documents\会议项目
+claude
+```
+
+然后直接用自然语言告诉 Claude Code：
+
+```
+我有一个中日双语会议录音 meeting.mp3，
+请帮我用 Whisper large-v3 转录，用 pyannote 做说话人分离，
+然后整理成中文会议纪要，输出为 Markdown 文件。
+Python 虚拟环境在 meeting-env 目录。
+```
+
+Claude Code 会自动处理文件读写、调试错误、优化脚本。
+
+-----
+
+## 常见问题
+
+### Q: `whisper` 命令找不到
+
+```powershell
+# 确保虚拟环境已激活
+meeting-env\Scripts\activate
+# 重新安装
+pip install openai-whisper
+```
+
+### Q: pyannote 提示 “401 Unauthorized”
+
+重新检查 HuggingFace Token 是否正确，以及是否已在 pyannote 模型页面点击授权。
+
+### Q: ffmpeg 找不到
+
+确认 `C:\ffmpeg\bin` 已添加到系统 PATH，并重启 PowerShell。
+
+### Q: 转录速度太慢
+
+- 使用 `--model medium` 代替 `large-v3`（精度略降但快很多）
+- 或安装 NVIDIA CUDA 版本的 PyTorch
+
+### Q: Claude Code 提示 “claude is not recognized”
+
+```powershell
+# 手动添加 PATH
+$env:PATH += ";$env:USERPROFILE\.local\bin"
+# 或重新打开终端
+```
+
+-----
+
+## 软件清单总览
+
+|软件              |版本       |用途            |下载地址                 |
+|----------------|---------|--------------|---------------------|
+|Git for Windows |最新版      |Claude Code 依赖|git-scm.com          |
+|Claude Code     |最新版（自动更新）|AI 编码助手       |claude.ai/install.ps1|
+|Python          |3.11.x   |运行转录脚本        |python.org           |
+|ffmpeg          |最新版      |音频解码          |ffmpeg.org           |
+|Whisper large-v3|—        |语音转文字         |自动下载（3GB）            |
+|pyannote.audio  |3.x      |说话人分离         |pip 安装               |
+|anthropic SDK   |最新版      |Claude API    |pip 安装               |
+
+-----
+
+*最后更新：2026年5月*
