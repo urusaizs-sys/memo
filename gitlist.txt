@@ -4,3 +4,6 @@ https://github.com/znyupup/knowledge-explainer-skill
 
 https://github.com/KYinCode/claude-code-popup-hooks
 用hook将通知窗口化
+
+https://github.com/multica-ai/andrej-karpathy-skills
+四条基础规则
