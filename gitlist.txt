@@ -1,3 +1,6 @@
 https://github.com/znyupup/knowledge-explainer-skill
 笔记做成了讲解视频
 
+
+https://github.com/KYinCode/claude-code-popup-hooks
+用hook将通知窗口化
