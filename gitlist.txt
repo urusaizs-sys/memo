@@ -7,3 +7,6 @@ https://github.com/KYinCode/claude-code-popup-hooks
 
 https://github.com/multica-ai/andrej-karpathy-skills
 四条基础规则
+
+https://github.com/rpamis/comet
+superpowers合体技
