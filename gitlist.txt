@@ -10,3 +10,6 @@ https://github.com/multica-ai/andrej-karpathy-skills
 
 https://github.com/rpamis/comet
 superpowers合体技
+
+https://github.com/Yesenmidnight/HighSpeed-H5-Engine
+手绘网站编辑器
