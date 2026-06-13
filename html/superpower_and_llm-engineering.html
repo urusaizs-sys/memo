@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLMエンジニアリングの3層 × Superpowers</title>
+
+<!-- ===========================================
+     FONTS — Cormorant (display serif) / Shippori Mincho (JP serif)
+     / IBM Plex Sans (latin body) / IBM Plex Mono (code)
+     Never system fonts. Dark Botanical = editorial / elegant.
+     =========================================== -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,400;0,500;0,600;1,500&family=Shippori+Mincho:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ===========================================
+   CSS CUSTOM PROPERTIES (THEME)
+   Change these to restyle the whole deck.
+   Palette: Dark Botanical — black ground, warm + muted botanical accents.
+   Layer hues are desaturated so the 3 layers stay distinct yet cohesive.
+   =========================================== */
+:root {
+  --bg:#0d0d0f;
+  --surface:#16161a;
+  --surface2:#1d1d22;
+  --border:rgba(236,231,223,.12);
+  --text:#ece7df;
+  --muted:#9a948b;
+  --gold:#c9b896;
+  --terra:#d4a574;
+  --pink:#e8b4b8;
+
+  /* layer accents (muted, botanical) */
+  --prompt:#a8bd86;   /* sage */
+  --context:#8fb0c4;  /* dusty blue */
+  --harness:#d8aa76;  /* terracotta */
+  --sp:#c4a4cf;       /* mauve */
+
+  --disp:'Cormorant','Shippori Mincho',serif;
+  --jp:'Shippori Mincho',serif;
+  --body:'IBM Plex Sans','Shippori Mincho',sans-serif;
+  --mono:'IBM Plex Mono',monospace;
+
+  --ease:cubic-bezier(.19,1,.22,1);
+
+  /* viewport-base typography (clamp) */
+  --title-size: clamp(1.5rem, 5vw, 4rem);
+  --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+  --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+  --body-size: clamp(0.78rem, 1.5vw, 1.125rem);
+  --small-size: clamp(0.65rem, 1vw, 0.875rem);
+  --slide-padding: clamp(1rem, 4vw, 4rem);
+  --content-gap: clamp(0.5rem, 2vw, 2rem);
+  --element-gap: clamp(0.25rem, 1vw, 1rem);
+}
+
+/* ===========================================
+   VIEWPORT FITTING: MANDATORY BASE (from viewport-base.css)
+   Slides fit exactly in viewport. No scrolling within slides.
+   =========================================== */
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow-x:hidden; }
+html { scroll-snap-type:y mandatory; scroll-behavior:smooth; }
+body { background:var(--bg); color:var(--text); font-family:var(--body); }
+
+.slide {
+  width:100vw; height:100vh; height:100dvh;
+  overflow:hidden; scroll-snap-align:start;
+  display:flex; flex-direction:column; position:relative;
+}
+.slide-content {
+  flex:1; display:flex; flex-direction:column; justify-content:center;
+  max-height:100%; overflow:hidden; padding:var(--slide-padding);
+  max-width:1180px; margin:0 auto; width:100%;
+}
+.card, .container, .content-box { max-width:min(92vw,1040px); max-height:min(82vh,720px); }
+.feature-list, .bullet-list { gap:clamp(0.4rem,1vh,1rem); }
+.feature-list li, .bullet-list li { font-size:var(--body-size); line-height:1.5; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr)); gap:clamp(0.5rem,1.5vw,1rem); }
+img, .image-container { max-width:100%; max-height:min(50vh,400px); object-fit:contain; }
+
+@media (max-height:700px){ :root{ --slide-padding:clamp(.75rem,3vw,2rem); --content-gap:clamp(.4rem,1.5vw,1rem); --title-size:clamp(1.25rem,4.5vw,2.5rem); --h2-size:clamp(1rem,3vw,1.75rem);} }
+@media (max-height:600px){ :root{ --slide-padding:clamp(.5rem,2.5vw,1.5rem); --content-gap:clamp(.3rem,1vw,.75rem); --title-size:clamp(1.1rem,4vw,2rem); --body-size:clamp(.7rem,1.2vw,.95rem);} .nav-dots,.keyboard-hint,.decorative{display:none;} }
+@media (max-height:500px){ :root{ --slide-padding:clamp(.4rem,2vw,1rem); --title-size:clamp(1rem,3.5vw,1.5rem); --h2-size:clamp(.9rem,2.5vw,1.25rem); --body-size:clamp(.65rem,1vw,.85rem);} }
+@media (max-width:600px){ :root{ --title-size:clamp(1.25rem,7vw,2.5rem);} .grid{grid-template-columns:1fr;} }
+@media (prefers-reduced-motion:reduce){ *,*::before,*::after{ animation-duration:.01ms!important; transition-duration:.2s!important;} html{scroll-behavior:auto;} }
+
+/* ===========================================
+   ATMOSPHERE — blurred botanical orbs + vertical rule + grain
+   Gives depth instead of a flat black ground.
+   =========================================== */
+.orb { position:absolute; border-radius:50%; filter:blur(80px); pointer-events:none; z-index:0; will-change:transform; }
+/* ambient drift — keeps the background "breathing" for liveliness */
+.orb-terra { background:radial-gradient(circle,var(--terra),transparent 70%); animation:floatA 24s ease-in-out infinite; }
+.orb-pink  { background:radial-gradient(circle,var(--pink),transparent 70%);  animation:floatB 30s ease-in-out infinite; }
+.orb-gold  { background:radial-gradient(circle,var(--gold),transparent 70%);  animation:floatA 20s ease-in-out infinite reverse; }
+@keyframes floatA { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(2.2vw,-2.4vh) scale(1.08);} }
+@keyframes floatB { 0%,100%{transform:translate(0,0) scale(1);} 50%{transform:translate(-2.6vw,2.2vh) scale(1.1);} }
+.vrule { position:absolute; top:0; left:clamp(1rem,3.2vw,3.2rem); width:1px; height:100%; z-index:1;
+  background:linear-gradient(transparent,rgba(201,184,150,.28) 22%,rgba(201,184,150,.28) 78%,transparent);
+  transform:scaleY(0); transform-origin:top; transition:transform 1.2s var(--ease) .1s; }
+.slide.visible .vrule { transform:scaleY(1); }
+body::after { /* subtle grain */
+  content:''; position:fixed; inset:0; z-index:9998; pointer-events:none; opacity:.025;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* ===========================================
+   SHARED TYPOGRAPHY / COMPONENTS
+   =========================================== */
+.kicker { font-family:var(--body); font-weight:300; font-size:var(--small-size);
+  letter-spacing:.3em; text-transform:uppercase; color:var(--gold); margin-bottom:clamp(.8rem,2vh,1.6rem); }
+.rule { width:0; height:1px; background:var(--gold); margin-bottom:clamp(1rem,2.4vh,1.7rem); transition:width 1s var(--ease) .25s; }
+.slide.visible .rule { width:clamp(38px,5vw,68px); }
+
+h1 { font-family:var(--disp); font-weight:600; font-size:var(--title-size); line-height:1.08; letter-spacing:.01em; }
+h1 .it { font-family:'Cormorant',var(--jp); font-style:italic; font-weight:500; color:var(--terra); }
+h2 { font-family:var(--jp); font-weight:700; font-size:var(--h2-size); line-height:1.2; letter-spacing:.01em; }
+h2 .en { font-family:var(--disp); font-style:italic; font-weight:500; color:var(--gold); }
+.lead { font-family:var(--body); font-weight:300; font-size:clamp(.9rem,1.9vw,1.3rem); color:var(--muted); line-height:1.8; max-width:42ch; }
+p { font-family:var(--body); font-weight:300; color:var(--muted); font-size:var(--body-size); line-height:1.75; max-width:50ch; }
+strong { color:var(--text); font-weight:500; }
+.content-z { position:relative; z-index:2; }
+
+/* eyebrow tag for section parts */
+.part-tag { font-family:var(--mono); font-size:var(--small-size); letter-spacing:.2em; color:var(--muted);
+  text-transform:uppercase; margin-bottom:clamp(.7rem,1.6vh,1.2rem); display:flex; align-items:center; gap:.7em; }
+.part-tag::before { content:''; width:clamp(20px,3vw,38px); height:1px; background:var(--muted); }
+
+/* layer badge */
+.lbadge { display:inline-block; font-family:var(--mono); font-size:var(--small-size); letter-spacing:.14em;
+  text-transform:uppercase; padding:.35em .9em; border-radius:100px; border:1px solid; margin-bottom:clamp(.8rem,1.8vh,1.4rem); }
+.lb-prompt  { color:var(--prompt);  border-color:color-mix(in srgb,var(--prompt) 50%,transparent); }
+.lb-context { color:var(--context); border-color:color-mix(in srgb,var(--context) 50%,transparent); }
+.lb-harness { color:var(--harness); border-color:color-mix(in srgb,var(--harness) 50%,transparent); }
+.lb-sp      { color:var(--sp);      border-color:color-mix(in srgb,var(--sp) 50%,transparent); }
+
+/* key-point rows */
+.kps { display:flex; flex-direction:column; gap:clamp(.5rem,1.4vh,1.1rem); margin-top:clamp(.6rem,1.6vh,1.2rem); max-width:46ch; }
+.kp { display:flex; gap:.9em; align-items:baseline; }
+.kp .k { font-family:var(--mono); font-size:var(--small-size); letter-spacing:.08em; min-width:6.5em; color:var(--gold); flex-shrink:0; }
+.kp .v { font-family:var(--body); font-weight:300; font-size:var(--body-size); color:var(--text); line-height:1.5; }
+.kp .v b { color:var(--text); font-weight:500; }
+
+/* chips */
+.chips { display:flex; flex-wrap:wrap; gap:.5em; margin-top:clamp(.7rem,1.8vh,1.3rem); }
+.chip { font-family:var(--mono); font-size:var(--small-size); padding:.3em .9em; border-radius:100px;
+  border:1px solid var(--border); color:var(--muted); background:rgba(255,255,255,.02); transition:.3s var(--ease); }
+.chip:hover { color:var(--text); border-color:color-mix(in srgb,var(--gold) 55%,transparent);
+  background:color-mix(in srgb,var(--gold) 8%,transparent); transform:translateY(-2px); }
+
+/* expandable card (progressive disclosure trigger) */
+.expand { cursor:pointer; position:relative; background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:clamp(.9rem,2vw,1.4rem) clamp(1.1rem,2.4vw,1.7rem); transition:.4s var(--ease);
+  border-left:2px solid var(--accent,var(--gold)); }
+.expand:hover { background:var(--surface2); transform:translateY(-3px);
+  box-shadow:0 16px 40px -20px var(--accent,var(--gold)); border-color:color-mix(in srgb,var(--accent,var(--gold)) 45%,var(--border)); }
+.expand .more { font-family:var(--mono); font-size:var(--small-size); color:var(--accent,var(--gold));
+  letter-spacing:.08em; display:inline-flex; align-items:center; gap:.4em; margin-top:.7em; opacity:.85; }
+.expand .more::before { content:'＋'; }
+.expand:hover .more { opacity:1; }
+.expand .ec-title { font-family:var(--jp); font-weight:600; font-size:clamp(.95rem,1.9vw,1.3rem); color:var(--text); }
+.expand .ec-desc { font-family:var(--body); font-weight:300; font-size:var(--small-size); color:var(--muted); margin-top:.35em; line-height:1.55; }
+
+/* ===========================================
+   SLIDE 1 — TITLE
+   =========================================== */
+.title-slide .slide-content { justify-content:center; }
+.title-slide .sig { position:absolute; bottom:clamp(1.4rem,4vh,3rem); right:clamp(1.6rem,5vw,5rem); z-index:2;
+  font-family:'Cormorant',serif; font-style:italic; color:var(--muted); font-size:clamp(.85rem,1.6vw,1.2rem); }
+.title-slide .sub { margin-top:clamp(1.4rem,3.4vh,2.4rem); }
+
+/* ===========================================
+   SLIDE 3 — NESTED LAYER DIAGRAM
+   =========================================== */
+.nest { width:100%; max-width:760px; border-radius:14px; }
+.nest-h { border:1px solid color-mix(in srgb,var(--harness) 40%,transparent); background:color-mix(in srgb,var(--harness) 7%,transparent);
+  border-radius:14px; padding:clamp(.9rem,2.2vw,1.6rem); }
+.nest-c { border:1px solid color-mix(in srgb,var(--context) 40%,transparent); background:color-mix(in srgb,var(--context) 7%,transparent);
+  border-radius:12px; padding:clamp(.8rem,1.9vw,1.3rem); margin:clamp(.6rem,1.4vh,1rem) clamp(.8rem,2.4vw,2rem) 0; }
+.nest-p { border:1px solid color-mix(in srgb,var(--prompt) 40%,transparent); background:color-mix(in srgb,var(--prompt) 7%,transparent);
+  border-radius:10px; padding:clamp(.7rem,1.6vw,1.1rem); margin:clamp(.6rem,1.4vh,1rem) clamp(.8rem,3.4vw,3.2rem) 0;
+  display:flex; align-items:center; justify-content:space-between; gap:1em; }
+.nest-tag { font-family:var(--mono); font-size:var(--small-size); letter-spacing:.12em; text-transform:uppercase; font-weight:500; }
+.nest-h .nest-tag{color:var(--harness)} .nest-c .nest-tag{color:var(--context)} .nest-p .nest-tag{color:var(--prompt)}
+.nest-q { font-family:var(--body); font-weight:300; font-size:var(--small-size); color:var(--muted); margin-top:.25em; }
+.nest-llm { font-family:var(--disp); font-style:italic; font-size:clamp(.9rem,1.8vw,1.3rem); color:var(--sp);
+  border:1px solid color-mix(in srgb,var(--sp) 35%,transparent); border-radius:8px; padding:.4em .8em; white-space:nowrap;
+  animation:floatLLM 6s ease-in-out infinite; box-shadow:0 0 0 0 color-mix(in srgb,var(--sp) 40%,transparent); }
+@keyframes floatLLM { 0%,100%{transform:translateY(0); box-shadow:0 8px 24px -12px color-mix(in srgb,var(--sp) 50%,transparent);} 50%{transform:translateY(-5px); box-shadow:0 16px 32px -12px color-mix(in srgb,var(--sp) 60%,transparent);} }
+
+/* ===========================================
+   SLIDE 7 — SUMMARY TABLE
+   =========================================== */
+.t-wrap { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; max-width:1000px; }
+table { width:100%; border-collapse:collapse; font-size:var(--body-size); }
+th { font-family:var(--mono); font-size:var(--small-size); letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+  text-align:left; padding:clamp(.6rem,1.4vw,1rem) clamp(.7rem,1.6vw,1.1rem); border-bottom:1px solid var(--border); font-weight:500; }
+td { font-family:var(--body); font-weight:300; padding:clamp(.7rem,1.5vw,1.1rem) clamp(.7rem,1.6vw,1.1rem);
+  border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+td:first-child { font-family:var(--mono); font-weight:500; font-size:var(--small-size); }
+
+/* ===========================================
+   SLIDE 9 — PHASE FLOW
+   =========================================== */
+.phases { display:flex; gap:clamp(.5rem,1.2vw,.9rem); align-items:stretch; max-width:1040px; flex-wrap:wrap; }
+.phase { flex:1; min-width:130px; background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:clamp(.8rem,1.8vw,1.3rem); position:relative; }
+.phase .pn { font-family:var(--mono); font-size:var(--small-size); color:var(--gold); letter-spacing:.1em; margin-bottom:.5em; }
+.phase .pname { font-family:var(--disp); font-style:italic; font-size:clamp(1rem,2.1vw,1.5rem); color:var(--text); margin-bottom:.3em; }
+.phase .pd { font-family:var(--body); font-weight:300; font-size:var(--small-size); color:var(--muted); line-height:1.5; }
+
+/* ===========================================
+   SLIDE 10 — MIRROR 3 CARDS
+   =========================================== */
+.mirror { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(.6rem,1.4vw,1.1rem); max-width:1040px; }
+@media (max-width:760px){ .mirror{grid-template-columns:1fr;} }
+
+/* ===========================================
+   SLIDE 11 — VS COMPARISON
+   =========================================== */
+.vs { display:grid; grid-template-columns:1fr auto 1fr; gap:clamp(.8rem,2vw,1.6rem); align-items:center; max-width:1000px; }
+@media (max-width:680px){ .vs{grid-template-columns:1fr; } .vs .vsbadge{display:none;} }
+.vcard { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:clamp(1rem,2.4vw,1.7rem); }
+.vcard.sp { border-top:2px solid var(--sp); }
+.vcard.max { border-top:2px solid var(--gold); }
+.vcard .vt { font-family:var(--disp); font-style:italic; font-size:clamp(1.05rem,2.2vw,1.6rem); margin-bottom:clamp(.6rem,1.4vh,1rem); }
+.vcard.sp .vt{color:var(--sp)} .vcard.max .vt{color:var(--gold)}
+.vrow { display:flex; gap:.8em; font-family:var(--body); font-weight:300; font-size:var(--small-size); color:var(--muted);
+  padding:.5em 0; border-bottom:1px solid var(--border); }
+.vrow:last-child{border-bottom:none;}
+.vrow .vk { font-family:var(--mono); color:var(--text); min-width:4.5em; flex-shrink:0; }
+.vsbadge { font-family:'Cormorant',serif; font-style:italic; font-size:clamp(1.2rem,3vw,2rem); color:var(--muted); }
+
+/* note box */
+.note { background:color-mix(in srgb,var(--sp) 8%,var(--surface)); border:1px solid color-mix(in srgb,var(--sp) 30%,transparent);
+  border-radius:12px; padding:clamp(.8rem,1.8vw,1.2rem) clamp(1rem,2.2vw,1.4rem); max-width:46ch; }
+.note .nl { font-family:var(--mono); font-size:var(--small-size); letter-spacing:.1em; text-transform:uppercase; color:var(--sp); margin-bottom:.4em; }
+.note p { color:var(--muted); }
+
+/* sources */
+.src { font-family:var(--mono); font-size:var(--small-size); color:var(--muted); line-height:1.9; margin-top:clamp(1rem,2.4vh,1.8rem); }
+.src a { color:var(--gold); text-decoration:none; border-bottom:1px solid color-mix(in srgb,var(--gold) 40%,transparent); }
+
+/* closing list */
+.take { display:flex; flex-direction:column; gap:clamp(.6rem,1.6vh,1.2rem); max-width:48ch; margin-top:clamp(.6rem,1.6vh,1rem); }
+.take li { list-style:none; font-family:var(--body); font-weight:300; font-size:var(--body-size); color:var(--muted);
+  line-height:1.6; padding-left:1.6em; position:relative; }
+.take li::before { content:'—'; position:absolute; left:0; color:var(--gold); }
+.take li strong{color:var(--text); font-weight:500;}
+
+/* ===========================================
+   ENTRANCE ANIMATIONS (Intersection Observer adds .visible)
+   Calm/editorial: slow staggered fade+rise.
+   =========================================== */
+.reveal { opacity:0; transform:translateY(26px); transition:opacity .9s var(--ease), transform .9s var(--ease); }
+.slide.visible .reveal { opacity:1; transform:none; }
+.slide.visible .reveal:nth-child(1){transition-delay:.05s}
+.slide.visible .reveal:nth-child(2){transition-delay:.18s}
+.slide.visible .reveal:nth-child(3){transition-delay:.31s}
+.slide.visible .reveal:nth-child(4){transition-delay:.44s}
+.slide.visible .reveal:nth-child(5){transition-delay:.57s}
+.slide.visible .reveal:nth-child(6){transition-delay:.70s}
+.reveal[data-d]{transition-delay:var(--dl);}
+
+/* entrance variants for extra dynamism */
+.reveal-scale { opacity:0; transform:scale(.9); transition:opacity .9s var(--ease) .25s, transform .9s var(--ease) .25s; }
+.slide.visible .reveal-scale { opacity:1; transform:none; }
+.reveal-blur { opacity:0; filter:blur(14px); transition:opacity 1s var(--ease), filter 1s var(--ease); }
+.slide.visible .reveal-blur { opacity:1; filter:none; }
+
+/* phase cards rise in sequence (slide 9) */
+.phases .phase { opacity:0; transform:translateY(22px) scale(.97); transition:opacity .7s var(--ease), transform .7s var(--ease); }
+.slide.visible .phases .phase:nth-child(1){opacity:1; transform:none; transition-delay:.18s}
+.slide.visible .phases .phase:nth-child(2){opacity:1; transform:none; transition-delay:.32s}
+.slide.visible .phases .phase:nth-child(3){opacity:1; transform:none; transition-delay:.46s}
+.slide.visible .phases .phase:nth-child(4){opacity:1; transform:none; transition-delay:.60s}
+.slide.visible .phases .phase:hover{ transform:translateY(-4px); transition-delay:0s; }
+
+/* ===========================================
+   PROGRESS BAR + NAV DOTS + PAGE NUMBER
+   =========================================== */
+.progress-bar { position:fixed; top:0; left:0; height:2px; width:0; z-index:9999;
+  background:linear-gradient(90deg,var(--prompt),var(--context),var(--harness),var(--sp)); transition:width .3s var(--ease); }
+.nav-dots { position:fixed; right:clamp(.9rem,1.8vw,1.6rem); top:50%; transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:.7em; z-index:60; }
+.nav-dots button { width:8px; height:8px; border-radius:50%; border:1px solid var(--muted); background:transparent;
+  padding:0; cursor:pointer; transition:.3s var(--ease); }
+.nav-dots button.active { background:var(--gold); border-color:var(--gold); transform:scale(1.35); box-shadow:0 0 10px color-mix(in srgb,var(--gold) 60%,transparent); }
+.pageno { position:absolute; bottom:clamp(1rem,3vh,2rem); left:clamp(1.4rem,4vw,4rem); z-index:2;
+  font-family:var(--mono); font-size:var(--small-size); color:var(--muted); letter-spacing:.18em; }
+.keyboard-hint { position:fixed; bottom:clamp(.8rem,2.4vh,1.6rem); left:50%; transform:translateX(-50%); z-index:55;
+  font-family:var(--mono); font-size:clamp(.6rem,1vw,.75rem); color:var(--border); letter-spacing:.1em; }
+
+/* ===========================================
+   DETAIL MODAL (progressive disclosure overlay)
+   Not a .slide → may scroll internally; immune to scroll-snap.
+   =========================================== */
+.modal-overlay { position:fixed; inset:0; z-index:9000; display:none; align-items:center; justify-content:center;
+  background:rgba(6,6,8,.72); backdrop-filter:blur(8px); padding:clamp(1rem,4vw,3rem); }
+.modal-overlay.open { display:flex; animation:fade .3s var(--ease); }
+@keyframes fade { from{opacity:0} to{opacity:1} }
+.modal-panel { position:relative; width:min(900px,94vw); max-height:88vh; overflow-y:auto;
+  background:var(--surface); border:1px solid var(--border); border-top:3px solid var(--accent,var(--gold));
+  border-radius:16px; padding:clamp(1.4rem,3.5vw,2.6rem); transform:translateY(20px) scale(.98);
+  transition:transform .35s var(--ease); box-shadow:0 40px 90px -30px #000; }
+.modal-overlay.open .modal-panel { transform:none; }
+.modal-panel::-webkit-scrollbar{width:8px;} .modal-panel::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+.modal-close { position:sticky; float:right; top:0; margin:-.5rem -.5rem 0 0; width:38px; height:38px; border-radius:50%;
+  border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:18px; cursor:pointer; transition:.3s; }
+.modal-close:hover { color:var(--text); border-color:var(--gold); }
+.modal-panel h3 { font-family:var(--jp); font-weight:700; font-size:clamp(1.1rem,2.6vw,1.7rem); color:var(--text); margin-bottom:.2em; }
+.modal-panel .m-kicker { font-family:var(--mono); font-size:var(--small-size); letter-spacing:.16em; text-transform:uppercase;
+  color:var(--accent,var(--gold)); margin-bottom:.8em; }
+.modal-panel p { font-size:clamp(.82rem,1.5vw,1rem); margin:.8em 0; max-width:none; }
+.modal-panel p strong{color:var(--text);}
+
+/* code block (inside modals) */
+.code { background:#0b0b0d; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin:1em 0; }
+.code-bar { background:var(--surface2); border-bottom:1px solid var(--border); padding:.5em 1em; display:flex; gap:.5em; align-items:center;
+  font-family:var(--mono); font-size:var(--small-size); color:var(--muted); }
+.code-bar .d { width:10px; height:10px; border-radius:50%; }
+.code-body { font-family:var(--mono); font-size:clamp(.7rem,1.4vw,.92rem); line-height:1.7; padding:1em 1.2em; white-space:pre; overflow-x:auto; color:var(--text); }
+.cmt{color:#6f6a62} .key{color:var(--context)} .str{color:var(--terra)} .ok{color:var(--prompt)} .bad{color:var(--pink)} .spc{color:var(--sp)}
+
+/* step list (modals) */
+.steps { display:flex; flex-direction:column; gap:.7em; margin:1em 0; }
+.step { display:flex; gap:1em; align-items:baseline; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:.8em 1.1em; }
+.step .sn { font-family:var(--mono); font-size:var(--small-size); color:var(--context); min-width:5em; flex-shrink:0; }
+.step .st { font-family:var(--body); font-weight:300; font-size:clamp(.8rem,1.5vw,.98rem); color:var(--text); }
+.step .st span{color:var(--muted);}
+
+/* flow row (modals) */
+.flow { display:flex; flex-wrap:wrap; align-items:center; gap:.5em; margin:1em 0; }
+.fbox { font-family:var(--mono); font-size:var(--small-size); background:var(--surface2); border:1px solid var(--border);
+  border-radius:8px; padding:.5em .9em; white-space:nowrap; }
+.fbox.ok{border-color:color-mix(in srgb,var(--prompt) 50%,transparent); color:var(--prompt);}
+.fbox.crit{border-color:color-mix(in srgb,var(--pink) 60%,transparent); color:var(--pink);}
+.farr{color:var(--muted);}
+.m-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8em; margin:1em 0; }
+@media (max-width:600px){ .m-grid{grid-template-columns:1fr;} }
+.m-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:1em 1.2em; }
+.m-card .mc-l{ font-family:var(--mono); font-size:var(--small-size); letter-spacing:.08em; text-transform:uppercase; margin-bottom:.5em; }
+.m-card.bad .mc-l{color:var(--pink)} .m-card.ok .mc-l{color:var(--prompt)}
+.m-card p{font-size:clamp(.78rem,1.4vw,.95rem); margin:.3em 0;}
+
+/* ===========================================
+   INLINE EDITING (opt-in)
+   =========================================== */
+.edit-hotzone { position:fixed; top:0; left:0; width:80px; height:80px; z-index:10000; cursor:pointer; }
+.edit-toggle { position:fixed; top:14px; left:14px; width:42px; height:42px; border-radius:50%; font-size:18px;
+  border:1px solid var(--border); background:var(--surface2); color:var(--text); cursor:pointer;
+  opacity:0; pointer-events:none; transition:opacity .3s ease; z-index:10001; }
+.edit-toggle.show, .edit-toggle.active { opacity:1; pointer-events:auto; }
+.edit-toggle.active { background:var(--gold); color:#1a1a1a; border-color:var(--gold); }
+.edit-banner { position:fixed; top:14px; left:50%; transform:translateX(-50%) translateY(-80px); z-index:10001;
+  font-family:var(--mono); font-size:var(--small-size); letter-spacing:.08em; color:#1a1a1a; background:var(--gold);
+  padding:.5em 1.2em; border-radius:100px; transition:transform .35s var(--ease); white-space:nowrap; }
+.edit-banner.active { transform:translateX(-50%) translateY(0); }
+body.edit-active [contenteditable]{ outline:1px dashed color-mix(in srgb,var(--gold) 60%,transparent); outline-offset:3px; border-radius:3px; }
+body.edit-active [contenteditable]:focus{ outline:1.5px solid var(--gold); background:rgba(201,184,150,.06); }
+</style>
+</head>
+<body>
+
+<!-- progress + nav + edit affordances -->
+<div class="progress-bar" id="progressBar"></div>
+<nav class="nav-dots" id="navDots" aria-label="スライドナビゲーション"></nav>
+<div class="keyboard-hint">← →／Space で移動 · クリックで詳細 · Esc で閉じる · E で編集</div>
+
+<div class="edit-hotzone"></div>
+<button class="edit-toggle" id="editToggle" title="編集モード (E)">✏️</button>
+<div class="edit-banner" id="editBanner">編集モード — テキストをクリックして編集 · Ctrl+S で保存</div>
+
+<main id="deck">
+
+  <!-- ============ SLIDE 1 — TITLE ============ -->
+  <section class="slide title-slide">
+    <div class="orb orb-terra" style="width:46vw;height:46vw;top:-14vw;right:-10vw;opacity:.5;"></div>
+    <div class="orb orb-pink"  style="width:34vw;height:34vw;bottom:-12vw;left:-6vw;opacity:.32;"></div>
+    <div class="orb orb-gold"  style="width:20vw;height:20vw;top:42%;left:54%;opacity:.22;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="rule reveal"></div>
+      <div class="kicker reveal">LLM Engineering — Three Layers</div>
+      <h1 class="reveal">モデルは変えない。<br><span class="it">使い方</span>を設計する。</h1>
+      <p class="lead sub reveal">Prompt · Context · Harness ―<br>信頼できるシステムを支える3つの設計レイヤー、<br>そしてその実装例としての <strong>Superpowers</strong>。</p>
+    </div>
+    <div class="sig reveal">勉強会資料 · 2026</div>
+    <div class="pageno">01 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 2 — WHY 3 LAYERS ============ -->
+  <section class="slide">
+    <div class="orb orb-gold" style="width:30vw;height:30vw;top:-8vw;left:-6vw;opacity:.16;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="part-tag reveal">Part 1 — 理論</div>
+      <h2 class="reveal">賢いモデル <span class="en">≠</span> 使えるシステム</h2>
+      <p class="reveal" style="margin:clamp(.6rem,1.6vh,1.2rem) 0;">LLMは本質的に<strong>確率的なテキスト補完エンジン</strong>。賢くなっても出力は毎回ゆらぎ、そのままではシステムに組み込めません。モデルを差し替えるのではなく、<strong>「どう使うか」を設計する</strong>3層が要ります。</p>
+      <ul class="take reveal">
+        <li><strong>Prompt</strong> ― どう頼むか（発話の設計）</li>
+        <li><strong>Context</strong> ― 何を見せるか（情報の取捨選択）</li>
+        <li><strong>Harness</strong> ― 出力をどう使うか（検証・制御の骨格）</li>
+      </ul>
+    </div>
+    <div class="pageno">02 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 3 — NESTED DIAGRAM ============ -->
+  <section class="slide">
+    <div class="orb orb-terra" style="width:34vw;height:34vw;bottom:-12vw;right:-10vw;opacity:.18;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z" style="align-items:flex-start;">
+      <div class="part-tag reveal">Part 1 — 理論</div>
+      <h2 class="reveal" style="margin-bottom:clamp(.8rem,2vh,1.4rem);">3層の入れ子構造</h2>
+      <div class="nest reveal reveal-scale">
+        <div class="nest-h">
+          <div class="nest-tag">Layer 3 · 🔩 Harness</div>
+          <div class="nest-q">出力をどう使うか ― 検証・リトライ・ルーティング・評価の外骨格</div>
+          <div class="nest-c">
+            <div class="nest-tag">Layer 2 · 📦 Context</div>
+            <div class="nest-q">何を見せるか ― 情報の取捨選択と注入</div>
+            <div class="nest-p">
+              <div>
+                <div class="nest-tag">Layer 1 · ✏️ Prompt</div>
+                <div class="nest-q">どう頼むか ― 発話の設計</div>
+              </div>
+              <div class="nest-llm">🤖 LLM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="reveal" style="margin-top:clamp(.7rem,1.8vh,1.2rem); font-size:var(--small-size);">内側のLLMを、3つの殻が包む。組み合わさって初めて「使えるシステム」になります。</p>
+    </div>
+    <div class="pageno">03 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 4 — PROMPT ============ -->
+  <section class="slide" style="--accent:var(--prompt);">
+    <div class="orb orb-gold" style="width:30vw;height:30vw;top:-10vw;right:-8vw;opacity:.14;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="lbadge lb-prompt reveal">Layer 1 · Prompt</div>
+      <h2 class="reveal">どう頼むか</h2>
+      <div class="kps reveal">
+        <div class="kp"><span class="k">解決する問題</span><span class="v">同じ質問でも<b>聞き方ひとつで出力が激変</b>する</span></div>
+        <div class="kp"><span class="k">本質</span><span class="v">モデルを変えず <b>役割・制約・出力形式</b> の指定で精度を上げる</span></div>
+      </div>
+      <div class="chips reveal">
+        <span class="chip">Role Prompting</span><span class="chip">Few-shot</span>
+        <span class="chip">Chain-of-Thought</span><span class="chip">Negative Constraints</span>
+        <span class="chip">Output Format Spec</span>
+      </div>
+      <div class="expand reveal" data-detail="d-prompt" style="margin-top:clamp(.9rem,2.2vh,1.5rem); max-width:46ch;">
+        <div class="ec-title">例：回路図ネットリスト解析</div>
+        <div class="ec-desc">悪いプロンプト vs 良いプロンプトで、出力がどう変わるか</div>
+        <span class="more">詳細を見る</span>
+      </div>
+    </div>
+    <div class="pageno">04 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 5 — CONTEXT ============ -->
+  <section class="slide" style="--accent:var(--context);">
+    <div class="orb orb-pink" style="width:32vw;height:32vw;bottom:-12vw;left:-8vw;opacity:.16;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="lbadge lb-context reveal">Layer 2 · Context</div>
+      <h2 class="reveal">何を見せるか</h2>
+      <div class="kps reveal">
+        <div class="kp"><span class="k">解決する問題</span><span class="v">作業記憶に詰め込みすぎると <b>コスト爆発・精度劣化</b>（Lost-in-the-Middle）</span></div>
+        <div class="kp"><span class="k">本質</span><span class="v"><b>何を入れ、何を捨てるか</b> を設計する</span></div>
+      </div>
+      <div class="chips reveal">
+        <span class="chip">RAG</span><span class="chip">Sliding Window</span>
+        <span class="chip">Semantic Chunking</span><span class="chip">Metadata Filtering</span>
+        <span class="chip">Domain Dictionary</span>
+      </div>
+      <div class="expand reveal" data-detail="d-context" style="margin-top:clamp(.9rem,2.2vh,1.5rem); max-width:46ch;">
+        <div class="ec-title">例：会議録の要約パイプライン</div>
+        <div class="ec-desc">1万トークンの会議録を、4ステップで約1/5に圧縮する</div>
+        <span class="more">詳細を見る</span>
+      </div>
+    </div>
+    <div class="pageno">05 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 6 — HARNESS ============ -->
+  <section class="slide" style="--accent:var(--harness);">
+    <div class="orb orb-terra" style="width:32vw;height:32vw;top:-10vw;right:-8vw;opacity:.18;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="lbadge lb-harness reveal">Layer 3 · Harness</div>
+      <h2 class="reveal">出力をどう使うか</h2>
+      <div class="kps reveal">
+        <div class="kp"><span class="k">解決する問題</span><span class="v">出力は<b>非決定論的</b>。毎回同じ形式で返るとは限らない</span></div>
+        <div class="kp"><span class="k">本質</span><span class="v"><b>検証・リトライ・ルーティング・評価</b> を自動化する外骨格</span></div>
+      </div>
+      <div class="chips reveal">
+        <span class="chip">Structured Output</span><span class="chip">Retry Logic</span>
+        <span class="chip">LLM-as-Judge</span><span class="chip">Guardrails</span>
+        <span class="chip">Routing</span><span class="chip">Feedback Logging</span>
+      </div>
+      <div class="expand reveal" data-detail="d-harness" style="margin-top:clamp(.9rem,2.2vh,1.5rem); max-width:46ch;">
+        <div class="ec-title">例：不具合レポートの自動分類</div>
+        <div class="ec-desc">リトライ・検証・ルーティングを含むコードと処理フロー</div>
+        <span class="more">詳細を見る</span>
+      </div>
+    </div>
+    <div class="pageno">06 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 7 — SUMMARY TABLE ============ -->
+  <section class="slide">
+    <div class="orb orb-gold" style="width:30vw;height:30vw;bottom:-10vw;right:-8vw;opacity:.14;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="part-tag reveal">Part 1 — まとめ</div>
+      <h2 class="reveal" style="margin-bottom:clamp(.8rem,2vh,1.4rem);">3層まとめ</h2>
+      <div class="t-wrap reveal">
+        <table>
+          <thead><tr><th>レイヤー</th><th>問い</th><th>対象</th><th>役割</th></tr></thead>
+          <tbody>
+            <tr><td style="color:var(--prompt)">Prompt</td><td>どう頼むか</td><td>発話設計</td><td>出力品質・形式の安定化</td></tr>
+            <tr><td style="color:var(--context)">Context</td><td>何を見せるか</td><td>情報設計</td><td>コスト削減・精度向上</td></tr>
+            <tr><td style="color:var(--harness)">Harness</td><td>出力をどう使うか</td><td>システム設計</td><td>信頼性・可観測性の保証</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="reveal" style="margin-top:clamp(.7rem,1.8vh,1.2rem);">独立した3つの問題。<strong>プロダクションでは全てが必要</strong>です。</p>
+    </div>
+    <div class="pageno">07 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 8 — BRIDGE + SUPERPOWERS ============ -->
+  <section class="slide" style="--accent:var(--sp);">
+    <div class="orb orb-pink" style="width:38vw;height:38vw;top:-12vw;left:-10vw;opacity:.18;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="part-tag reveal">Part 2 — 実装例</div>
+      <h2 class="reveal">では、実際のツールは？ <span class="en">— Superpowers</span></h2>
+      <div class="kps reveal">
+        <div class="kp"><span class="k">開発</span><span class="v">Jesse Vincent（GitHub: <b>obra</b> / Prime Radiant）</span></div>
+        <div class="kp"><span class="k">形態</span><span class="v"><b>OSS・無料</b>。Claude Code のプラグインマーケットプレイス経由で導入</span></div>
+        <div class="kp"><span class="k">中身</span><span class="v">合成可能な<b>スキル群</b>（markdown）＋セッション開始時の注入</span></div>
+      </div>
+      <div class="expand reveal" data-detail="d-sp" style="margin-top:clamp(.9rem,2.2vh,1.5rem); max-width:46ch;">
+        <div class="ec-title">正確性についての注記</div>
+        <div class="ec-desc">「スキル数」「コマンド」など、確認できた事実と注意点</div>
+        <span class="more">詳細を見る</span>
+      </div>
+    </div>
+    <div class="pageno">08 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 9 — WORKFLOW ============ -->
+  <section class="slide" style="--accent:var(--sp);">
+    <div class="orb orb-terra" style="width:30vw;height:30vw;bottom:-10vw;right:-8vw;opacity:.16;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="lbadge lb-sp reveal">Workflow</div>
+      <h2 class="reveal" style="margin-bottom:clamp(.7rem,1.8vh,1.2rem);">規律あるワークフロー</h2>
+      <p class="reveal" style="margin-bottom:clamp(.7rem,1.8vh,1.2rem); max-width:54ch;">基本は「<strong>まず発散 → ブランチ分離 → 計画を書く → 実行</strong>」。各段が次への関門になります。</p>
+      <div class="phases">
+        <div class="phase expand reveal" data-detail="d-ph-brainstorm" style="--accent:var(--sp);">
+          <div class="pn">01</div><div class="pname">Brainstorm</div><div class="pd">対話で「本当に欲しいもの」を仕様化</div><span class="more">詳細</span>
+        </div>
+        <div class="phase expand reveal" data-detail="d-ph-branch" style="--accent:var(--harness);">
+          <div class="pn">02</div><div class="pname">Branch</div><div class="pd">git worktree で作業を分離</div><span class="more">詳細</span>
+        </div>
+        <div class="phase expand reveal" data-detail="d-ph-plan" style="--accent:var(--context);">
+          <div class="pn">03</div><div class="pname">Plan</div><div class="pd">詳細なタスク計画を文書化</div><span class="more">詳細</span>
+        </div>
+        <div class="phase expand reveal" data-detail="d-ph-execute" style="--accent:var(--prompt);">
+          <div class="pn">04</div><div class="pname">Execute</div><div class="pd">サブエージェントで実装・レビュー</div><span class="more">詳細</span>
+        </div>
+      </div>
+      <p class="reveal" style="margin-top:clamp(.8rem,2vh,1.4rem); font-size:var(--small-size); color:var(--muted);">各カードをクリックすると、そのフェーズの詳細が開きます。</p>
+    </div>
+    <div class="pageno">09 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 10 — MIRROR (3 layers in Superpowers) ============ -->
+  <section class="slide">
+    <div class="orb orb-gold" style="width:34vw;height:34vw;top:-12vw;right:-10vw;opacity:.14;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="part-tag reveal">Part 2 — 鏡写し</div>
+      <h2 class="reveal" style="margin-bottom:clamp(.5rem,1.4vh,1rem);">3層レンズで見る Superpowers</h2>
+      <p class="reveal" style="margin-bottom:clamp(.7rem,1.8vh,1.2rem); font-size:var(--small-size); color:var(--sp);">※ これは公式分類ではなく、3層の観点で整理した「見方」です。</p>
+      <div class="mirror reveal">
+        <div class="expand" data-detail="d-m-prompt" style="--accent:var(--prompt);">
+          <div class="nest-tag" style="color:var(--prompt)">✏️ Prompt として</div>
+          <div class="ec-desc">スキル内の最適化済み指示・問いかけ設計</div>
+          <span class="more">詳細</span>
+        </div>
+        <div class="expand" data-detail="d-m-context" style="--accent:var(--context);">
+          <div class="nest-tag" style="color:var(--context)">📦 Context として</div>
+          <div class="ec-desc">スキルの注入・CLAUDE.md による知識付与</div>
+          <span class="more">詳細</span>
+        </div>
+        <div class="expand" data-detail="d-m-harness" style="--accent:var(--harness);">
+          <div class="nest-tag" style="color:var(--harness)">🔩 Harness として</div>
+          <div class="ec-desc">段階の規律・状態管理・TDDゲート</div>
+          <span class="more">詳細</span>
+        </div>
+      </div>
+    </div>
+    <div class="pageno">10 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 11 — VS ============ -->
+  <section class="slide">
+    <div class="orb orb-pink" style="width:30vw;height:30vw;bottom:-10vw;left:-8vw;opacity:.16;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="part-tag reveal">Part 2 — 対比</div>
+      <h2 class="reveal" style="margin-bottom:clamp(.8rem,2vh,1.4rem);">規律 <span class="en">vs</span> 物量</h2>
+      <div class="vs reveal">
+        <div class="vcard sp">
+          <div class="vt">Superpowers</div>
+          <div class="vrow"><span class="vk">戦略</span>無駄なトークンを<strong>削減</strong></div>
+          <div class="vrow"><span class="vk">手段</span>規律ある段階設計で方向誤りを排除</div>
+          <div class="vrow"><span class="vk">コスト</span>無料（OSSプラグイン）</div>
+          <div class="vrow"><span class="vk">向き</span>複雑なフィーチャー開発</div>
+        </div>
+        <div class="vsbadge">vs</div>
+        <div class="vcard max">
+          <div class="vt">上位プラン（Max 等）</div>
+          <div class="vrow"><span class="vk">戦略</span>使えるトークンを<strong>増量</strong></div>
+          <div class="vrow"><span class="vk">手段</span>上位プランで利用上限を緩和</div>
+          <div class="vrow"><span class="vk">コスト</span>月額課金（有料）</div>
+          <div class="vrow"><span class="vk">向き</span>大規模・長期タスク</div>
+        </div>
+      </div>
+      <div class="note reveal" style="margin-top:clamp(.8rem,2vh,1.4rem); max-width:none;">
+        <div class="nl">結論</div>
+        <p>両者は<strong>相補的</strong>。規律で無駄を減らしつつ、大規模タスクには物量の余裕を使うのが効率的です。</p>
+      </div>
+    </div>
+    <div class="pageno">11 — 12</div>
+  </section>
+
+  <!-- ============ SLIDE 12 — CLOSE ============ -->
+  <section class="slide">
+    <div class="orb orb-terra" style="width:40vw;height:40vw;top:-12vw;right:-12vw;opacity:.18;"></div>
+    <div class="orb orb-gold" style="width:24vw;height:24vw;bottom:-8vw;left:-6vw;opacity:.16;"></div>
+    <div class="vrule"></div>
+    <div class="slide-content content-z">
+      <div class="rule reveal"></div>
+      <div class="kicker reveal">Takeaways</div>
+      <h2 class="reveal" style="font-family:var(--disp); font-style:italic; font-weight:500;">まとめ</h2>
+      <ul class="take reveal" style="margin-top:clamp(.8rem,2vh,1.4rem);">
+        <li><strong>Prompt / Context / Harness</strong> はそれぞれ別の問題を解く。本番では3層すべてが要る</li>
+        <li>賢いモデルだけでは「使えるシステム」にならない ― <strong>設計</strong>が品質・コスト・信頼性を決める</li>
+        <li><strong>Superpowers</strong> は、その3層を1つの規律あるワークフローに束ねた<strong>実装例</strong></li>
+      </ul>
+      <div class="src reveal">
+        出典 —
+        <a href="https://github.com/obra/superpowers">github.com/obra/superpowers</a> ·
+        <a href="https://claude.com/plugins/superpowers">claude.com/plugins/superpowers</a> ·
+        <a href="https://www.builder.io/blog/claude-code-superpowers-plugin">builder.io</a>
+      </div>
+    </div>
+    <div class="pageno">12 — 12</div>
+  </section>
+
+</main>
+
+<!-- ===========================================
+     DETAIL MODAL CONTENT (hidden; cloned into overlay on click)
+     =========================================== -->
+<div id="details" hidden>
+
+  <div id="d-prompt">
+    <div class="m-kicker">Layer 1 · Prompt — 例</div>
+    <h3>回路図ネットリスト解析</h3>
+    <div class="code">
+      <div class="code-bar"><span class="d" style="background:#FF5F57"></span><span class="d" style="background:#FEBC2E"></span><span class="d" style="background:#28C840"></span><span style="margin-left:.4em">prompt.txt</span></div>
+<div class="code-body"><span class="cmt">// 悪い ― 出力が毎回バラバラ</span>
+<span class="bad">"このネットリストを解析してください"</span>
+
+<span class="cmt">// 良い ― 構造化された出力が安定</span>
+<span class="ok">あなたはEDAツールの専門家です。次のKiCad netlistから:
+  1. 未接続ピンを列挙
+  2. VCC/GNDに未接続のコンポーネントを警告
+  3. 出力は必ずJSON形式で返すこと
+制約: 推測で補完しない / 不明は "UNKNOWN" / 説明文は不要</span></div>
+    </div>
+    <div class="m-grid">
+      <div class="m-card bad"><div class="mc-l">悪い例の出力</div><p>「解析しました。いくつか問題が…」<br>→ <strong>パースできない</strong></p></div>
+      <div class="m-card ok"><div class="mc-l">良い例の出力</div><p><strong>{ "unconnected": ["U1.PIN3"], "warnings": ["C2: no VCC"] }</strong><br>→ <strong>即システムに組み込める</strong></p></div>
+    </div>
+  </div>
+
+  <div id="d-context">
+    <div class="m-kicker">Layer 2 · Context — 例</div>
+    <h3>バイリンガル会議録の要約パイプライン</h3>
+    <p>1時間の会議録 ≒ 1万トークン。全部渡すとコスト・精度が悪化する。4ステップで圧縮する。</p>
+    <div class="steps">
+      <div class="step"><span class="sn">STEP 1</span><span class="st">発話者セグメント分割 <span>― speaker_A / B / C に分類</span></span></div>
+      <div class="step"><span class="sn">STEP 2</span><span class="st">スパース化 <span>― 「決定 / TODO / 懸念」を含む発話のみ保持 → 約80%削減</span></span></div>
+      <div class="step"><span class="sn">STEP 3</span><span class="st">ローリングウィンドウ <span>― 直前5分のみ短期メモリに保持</span></span></div>
+      <div class="step"><span class="sn">STEP 4</span><span class="st">ドメイン辞書を先頭に注入 <span>― 略語辞書でLLMの誤解釈を防ぐ</span></span></div>
+    </div>
+    <p><strong>RAG（検索拡張生成）</strong>もContext Engineeringの一形態。関連する断片だけを動的に注入します。</p>
+  </div>
+
+  <div id="d-harness">
+    <div class="m-kicker">Layer 3 · Harness — 例</div>
+    <h3>不具合レポートの自動分類</h3>
+    <div class="code">
+      <div class="code-bar"><span class="d" style="background:#FF5F57"></span><span class="d" style="background:#FEBC2E"></span><span class="d" style="background:#28C840"></span><span style="margin-left:.4em">classifier.py</span></div>
+<div class="code-body"><span class="cmt"># 重大度の出力形式がバラバラ ("High"/"致命的"/"重要度:高"…) → パース不可</span>
+<span class="key">class</span> <span class="str">DefectClassifier</span>:
+  <span class="key">def</span> classify(self, report):
+    <span class="key">for</span> attempt <span class="key">in</span> range(3):          <span class="cmt"># [1] リトライ</span>
+      res = llm.call(prompt, report)
+      <span class="key">if</span> is_valid_json(res):           <span class="cmt"># [2] バリデーション</span>
+        r = parse(res); self.log(r)     <span class="cmt"># [3] 評価ログ</span>
+        <span class="key">if</span> r.severity == <span class="str">"Critical"</span>:    <span class="cmt"># [4] ルーティング</span>
+          slack.notify_immediate()
+        <span class="key">return</span> r
+    <span class="key">raise</span> HarnessError(<span class="str">"invalid after 3 retries"</span>)</div>
+    </div>
+    <div class="flow">
+      <span class="fbox">📄 レポート</span><span class="farr">→</span>
+      <span class="fbox">LLM呼び出し</span><span class="farr">→</span>
+      <span class="fbox">JSONバリデーター</span><span class="farr">→</span>
+      <span class="fbox ok">✓ ルーター</span><span class="farr">／</span>
+      <span class="fbox crit">🔴 Slack即時通知</span>
+    </div>
+  </div>
+
+  <div id="d-sp">
+    <div class="m-kicker">Superpowers — 正確性の注記</div>
+    <h3>事実として押さえる点</h3>
+    <p><strong>配布:</strong> npm ではなく Claude Code の<strong>プラグインマーケットプレイス</strong>経由（<code style="font-family:var(--mono);color:var(--sp)">/plugin marketplace add obra/superpowers-marketplace</code>）。</p>
+    <p><strong>スキル数:</strong> 公開情報で「12スキル」「20以上」などバージョンにより変動。<strong>具体数は断定しない</strong>のが安全です。</p>
+    <p><strong>主なスキル名（実在）:</strong> brainstorming / writing-plans / executing-plans / test-driven-development / systematic-debugging / subagent-driven-development / requesting-code-review など。</p>
+    <p><strong>コマンド例:</strong> <code style="font-family:var(--mono);color:var(--sp)">/brainstorm</code> · <code style="font-family:var(--mono);color:var(--sp)">/write-plan</code> · <code style="font-family:var(--mono);color:var(--sp)">/execute-plan</code>。</p>
+  </div>
+
+  <div id="d-ph-brainstorm">
+    <div class="m-kicker" style="color:var(--sp)">Phase 01 · Brainstorm</div>
+    <h3>まず発散させる</h3>
+    <p>ソクラテス的な対話で、ユーザーが「言ったこと」ではなく <strong>「本当に欲しいもの」</strong> を引き出し、検証済みの仕様へ昇華させるフェーズ。</p>
+    <p><strong>ゲート:</strong> 設計に合意するまで実装には入りません（どんなに簡単に見えるタスクでも）。これが方向誤りによる手戻りを防ぎます。</p>
+    <p><strong>コマンド:</strong> <code style="font-family:var(--mono);color:var(--sp)">/brainstorm</code></p>
+  </div>
+
+  <div id="d-ph-branch">
+    <div class="m-kicker" style="color:var(--harness)">Phase 02 · Branch</div>
+    <h3>作業を分離する</h3>
+    <p><strong>git worktree</strong> で、現在の作業空間から隔離した環境を用意します。フィーチャー作業を本流から守り、実験や失敗を安全に切り離せます。</p>
+    <p><strong>効果:</strong> 失敗時に安全にロールバックでき、Harness 層の「リトライ制御 / 分離」に対応します。</p>
+  </div>
+
+  <div id="d-ph-plan">
+    <div class="m-kicker" style="color:var(--context)">Phase 03 · Plan</div>
+    <h3>計画を書いてから動く</h3>
+    <p>タスクを小さな単位に分解し、<strong>ファイルパス・コマンド・依存関係</strong>まで明記した plan.md を作成します。チェックボックスがセッション跨ぎの状態管理になります。</p>
+    <p><strong>コマンド:</strong> <code style="font-family:var(--mono);color:var(--context)">/write-plan</code></p>
+    <div class="code">
+      <div class="code-bar"><span class="d" style="background:#FF5F57"></span><span class="d" style="background:#FEBC2E"></span><span class="d" style="background:#28C840"></span><span style="margin-left:.4em">plan.md（状態ログ）</span></div>
+<div class="code-body"><span class="spc">## Task Breakdown</span>
+<span class="ok">- [x]</span> Task 1: JWT検証関数を追加
+<span class="ok">- [x]</span> Task 2: ユニットテスト追加
+<span class="bad">- [ ]</span> Task 3: ミドルウェア統合
+<span class="bad">- [ ]</span> Task 4: E2Eテスト実行
+<span class="cmt"># チェックボックスがセッション復元の手がかり</span></div>
+    </div>
+  </div>
+
+  <div id="d-ph-execute">
+    <div class="m-kicker" style="color:var(--prompt)">Phase 04 · Execute</div>
+    <h3>規律ある実装</h3>
+    <p>確定した計画を<strong>サブエージェント</strong>が実装します。実行段階は、複数のスキルが規律づけます。</p>
+    <div class="steps">
+      <div class="step"><span class="sn">TDD</span><span class="st">test-driven-development <span>― RED → GREEN → REFACTOR</span></span></div>
+      <div class="step"><span class="sn">Debug</span><span class="st">systematic-debugging <span>― 4段階・根本原因から</span></span></div>
+      <div class="step"><span class="sn">並列</span><span class="st">subagent-driven-development <span>― タスクを並列実行</span></span></div>
+      <div class="step"><span class="sn">Review</span><span class="st">requesting-code-review <span>― マージ前の検証</span></span></div>
+    </div>
+    <p><strong>コマンド:</strong> <code style="font-family:var(--mono);color:var(--prompt)">/execute-plan</code></p>
+  </div>
+
+  <div id="d-m-prompt">
+    <div class="m-kicker" style="color:var(--prompt)">Lens · Prompt</div>
+    <h3>Prompt Engineering として</h3>
+    <p>各スキル（markdown）には、<strong>最適化済みの指示・チェックリスト・問いかけの構造</strong>が書き込まれています。とくに brainstorming スキルは、ソクラテス的な対話で「本当に欲しいもの」を引き出す問いの設計そのものです。</p>
+    <p>＝「どう頼むか」を、ツール側があらかじめ用意している状態。</p>
+  </div>
+
+  <div id="d-m-context">
+    <div class="m-kicker" style="color:var(--context)">Lens · Context</div>
+    <h3>Context Engineering として</h3>
+    <p>スキルファイルは<strong>セッション開始時にコンテキストへ注入</strong>されます。さらに <code style="font-family:var(--mono);color:var(--context)">CLAUDE.md</code> でプロジェクト固有の知識（スタック・規約・命名）を与えます。</p>
+    <p>＝「何をモデルに見せるか」を、ファイルという形で設計している。</p>
+  </div>
+
+  <div id="d-m-harness">
+    <div class="m-kicker" style="color:var(--harness)">Lens · Harness</div>
+    <h3>Harness Engineering として</h3>
+    <p>Superpowers が最も強いのがこの層です。</p>
+    <div class="m-grid">
+      <div class="m-card"><div class="mc-l" style="color:var(--harness)">段階の規律</div><p>各フェーズ完了まで次へ進めない</p></div>
+      <div class="m-card"><div class="mc-l" style="color:var(--harness)">状態管理</div><p>plan.md でセッション復元</p></div>
+      <div class="m-card"><div class="mc-l" style="color:var(--harness)">検証ゲート</div><p>TDD・コードレビューのチェックポイント</p></div>
+      <div class="m-card"><div class="mc-l" style="color:var(--harness)">分離</div><p>git worktree で安全にロールバック</p></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- modal overlay shell -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-panel" id="modalPanel"></div>
+</div>
+
+<script>
+/* ===========================================
+   RESTORE SAVED EDITS FIRST
+   Must run BEFORE listeners/observers attach, because replacing
+   #deck.innerHTML would otherwise wipe them.
+   =========================================== */
+(function restoreSaved(){
+  try {
+    const s = localStorage.getItem('llm-deck-content-v1');
+    if (s) document.getElementById('deck').innerHTML = s;
+  } catch (e) {}
+})();
+
+/* ===========================================
+   SLIDE PRESENTATION CONTROLLER
+   - scroll-snap deck + keyboard / wheel / touch nav
+   - Intersection Observer triggers .visible reveals
+   - progress bar + nav dots
+   =========================================== */
+class SlidePresentation {
+  constructor() {
+    this.slides = Array.from(document.querySelectorAll('.slide'));
+    this.current = 0;
+    this.modalOpen = false;
+    this.buildNavDots();
+    this.observe();
+    this.keyboard();
+    this.wheel();
+    this.touch();
+  }
+  buildNavDots() {
+    const nav = document.getElementById('navDots');
+    nav.innerHTML = ''; // clear first (avoid duplicates if file re-opened)
+    this.slides.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.setAttribute('aria-label', `スライド ${i+1}`);
+      b.addEventListener('click', () => this.go(i));
+      nav.appendChild(b);
+    });
+    this.dots = Array.from(nav.children);
+  }
+  observe() {
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          this.current = this.slides.indexOf(e.target);
+          this.updateHud();
+        }
+      });
+    }, { threshold: 0.55 });
+    this.slides.forEach(s => io.observe(s));
+  }
+  updateHud() {
+    const pct = ((this.current + 1) / this.slides.length) * 100;
+    document.getElementById('progressBar').style.width = pct + '%';
+    this.dots.forEach((d, i) => d.classList.toggle('active', i === this.current));
+  }
+  go(i) {
+    i = Math.max(0, Math.min(this.slides.length - 1, i));
+    this.slides[i].scrollIntoView({ behavior: 'smooth' });
+  }
+  keyboard() {
+    document.addEventListener('keydown', e => {
+      if (e.target.getAttribute('contenteditable')) return; // don't navigate while editing
+      if (e.key === 'Escape') { closeModal(); return; }
+      if (this.modalOpen) return;
+      if (['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)) { e.preventDefault(); this.go(this.current + 1); }
+      else if (['ArrowLeft','ArrowUp','PageUp'].includes(e.key)) { e.preventDefault(); this.go(this.current - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); this.go(0); }
+      else if (e.key === 'End') { e.preventDefault(); this.go(this.slides.length - 1); }
+    });
+  }
+  wheel() {
+    let lock = false;
+    window.addEventListener('wheel', e => {
+      if (this.modalOpen) return;
+      if (lock) return;
+      if (Math.abs(e.deltaY) < 24) return;
+      lock = true;
+      this.go(this.current + (e.deltaY > 0 ? 1 : -1));
+      setTimeout(() => lock = false, 750);
+    }, { passive: true });
+  }
+  touch() {
+    let y0 = null;
+    window.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+    window.addEventListener('touchend', e => {
+      if (this.modalOpen || y0 === null) return;
+      const dy = y0 - e.changedTouches[0].clientY;
+      if (Math.abs(dy) > 50) this.go(this.current + (dy > 0 ? 1 : -1));
+      y0 = null;
+    }, { passive: true });
+  }
+}
+const deck = new SlidePresentation();
+
+/* ===========================================
+   DETAIL MODAL (progressive disclosure)
+   =========================================== */
+const overlay = document.getElementById('modalOverlay');
+const panel = document.getElementById('modalPanel');
+function openModal(id, accent) {
+  const src = document.getElementById(id);
+  if (!src) return;
+  panel.innerHTML = '<button class="modal-close" aria-label="閉じる">×</button>' + src.innerHTML;
+  panel.style.setProperty('--accent', accent || 'var(--gold)');
+  overlay.classList.add('open');
+  deck.modalOpen = true;
+  panel.querySelector('.modal-close').addEventListener('click', closeModal);
+  panel.scrollTop = 0;
+}
+function closeModal() {
+  overlay.classList.remove('open');
+  deck.modalOpen = false;
+}
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+document.querySelectorAll('.expand').forEach(card => {
+  card.addEventListener('click', () => {
+    if (document.body.classList.contains('edit-active')) return; // don't open while editing
+    const accent = getComputedStyle(card).getPropertyValue('--accent') || 'var(--gold)';
+    openModal(card.dataset.detail, accent.trim());
+  });
+});
+
+/* ===========================================
+   INLINE EDITING (opt-in) — localStorage autosave + export
+   =========================================== */
+const EDIT_SELECTOR = 'h1,h2,p,li,td,th,.kicker,.ec-title,.ec-desc,.nest-q,.nest-tag,.pname,.pd,.vt,.vrow,.kp .v,.kp .k,.chip,.nl,.lead';
+const STORE_KEY = 'llm-deck-content-v1';
+
+const editor = {
+  isActive: false,
+  toggleEditMode() {
+    this.isActive = !this.isActive;
+    document.body.classList.toggle('edit-active', this.isActive);
+    document.getElementById('editToggle').classList.toggle('active', this.isActive);
+    document.getElementById('editBanner').classList.toggle('active', this.isActive);
+    document.querySelectorAll(EDIT_SELECTOR).forEach(el => {
+      if (this.isActive) el.setAttribute('contenteditable', 'true');
+      else el.removeAttribute('contenteditable');
+    });
+  },
+  save() {
+    try { localStorage.setItem(STORE_KEY, document.getElementById('deck').innerHTML); } catch (e) {}
+  },
+  restore() {
+    try {
+      const saved = localStorage.getItem(STORE_KEY);
+      if (saved) document.getElementById('deck').innerHTML = saved;
+    } catch (e) {}
+  },
+  exportFile() {
+    // strip edit state so the saved file opens cleanly
+    const els = Array.from(document.querySelectorAll('[contenteditable]'));
+    els.forEach(el => el.removeAttribute('contenteditable'));
+    document.body.classList.remove('edit-active');
+    const t = document.getElementById('editToggle'), b = document.getElementById('editBanner');
+    t?.classList.remove('active','show'); b?.classList.remove('active');
+    const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    // restore
+    if (this.isActive) {
+      document.body.classList.add('edit-active'); t?.classList.add('active'); b?.classList.add('active');
+      els.forEach(el => el.setAttribute('contenteditable','true'));
+    }
+    const blob = new Blob([html], { type:'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'slides.html'; a.click();
+    URL.revokeObjectURL(a.href);
+  }
+};
+
+/* (edits already restored at the top of this script, before init) */
+
+/* edit toggle button */
+document.getElementById('editToggle').addEventListener('click', () => editor.toggleEditMode());
+
+/* hotzone hover with 400ms grace */
+const hotzone = document.querySelector('.edit-hotzone');
+const editToggle = document.getElementById('editToggle');
+let hideTimeout = null;
+hotzone.addEventListener('mouseenter', () => { clearTimeout(hideTimeout); editToggle.classList.add('show'); });
+hotzone.addEventListener('mouseleave', () => { hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400); });
+editToggle.addEventListener('mouseenter', () => clearTimeout(hideTimeout));
+editToggle.addEventListener('mouseleave', () => { hideTimeout = setTimeout(() => { if (!editor.isActive) editToggle.classList.remove('show'); }, 400); });
+hotzone.addEventListener('click', () => editor.toggleEditMode());
+
+/* keyboard: E toggles edit, Ctrl+S saves+exports, autosave on input */
+document.addEventListener('keydown', e => {
+  if ((e.key === 'e' || e.key === 'E') && !e.target.getAttribute('contenteditable')) { editor.toggleEditMode(); }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) { e.preventDefault(); editor.save(); editor.exportFile(); }
+});
+document.getElementById('deck').addEventListener('input', e => {
+  if (e.target.getAttribute('contenteditable')) editor.save();
+});
+</script>
+</body>
+</html>
