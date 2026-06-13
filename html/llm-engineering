@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Engineering Layers</title>
+<style>
+  :root {
+    --bg:        #0D1117;
+    --surface:   #161B22;
+    --surface2:  #1C2333;
+    --border:    #30363D;
+    --blue:      #58A6FF;
+    --amber:     #F0A500;
+    --green:     #3DDC97;
+    --red:       #FF6B6B;
+    --text:      #E6EDF3;
+    --muted:     #8B949E;
+    --prompt-c:  #3DDC97;
+    --context-c: #58A6FF;
+    --harness-c: #F0A500;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+    --sans: 'Inter', 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', system-ui, sans-serif;
+  }
+
+- { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: var(–sans);
+font-size: 15px;
+line-height: 1.7;
+min-height: 100vh;
+}
+
+header {
+border-bottom: 1px solid var(–border);
+padding: 20px 40px;
+display: flex;
+align-items: center;
+gap: 16px;
+position: sticky;
+top: 0;
+background: rgba(13,17,23,0.94);
+backdrop-filter: blur(8px);
+z-index: 100;
+}
+.logo {
+font-family: var(–mono);
+font-weight: 700;
+font-size: 13px;
+color: var(–muted);
+letter-spacing: 0.08em;
+}
+.logo span { color: var(–blue); }
+header h1 {
+font-family: var(–mono);
+font-size: 13px;
+font-weight: 600;
+color: var(–text);
+margin-left: auto;
+}
+
+.shell {
+display: grid;
+grid-template-columns: 220px 1fr;
+min-height: calc(100vh - 61px);
+}
+
+nav {
+border-right: 1px solid var(–border);
+padding: 32px 0;
+position: sticky;
+top: 61px;
+height: calc(100vh - 61px);
+overflow-y: auto;
+}
+nav .nav-label {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 0.12em;
+color: var(–muted);
+padding: 0 24px 10px;
+text-transform: uppercase;
+}
+nav a {
+display: flex;
+align-items: center;
+gap: 10px;
+padding: 9px 24px;
+text-decoration: none;
+color: var(–muted);
+font-size: 13px;
+font-weight: 500;
+transition: all 0.15s;
+border-left: 2px solid transparent;
+}
+nav a:hover { color: var(–text); background: var(–surface); }
+nav a.active { color: var(–text); border-left-color: var(–blue); background: var(–surface); }
+nav a .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+nav a.nav-prompt .dot  { background: var(–prompt-c); }
+nav a.nav-context .dot { background: var(–context-c); }
+nav a.nav-harness .dot { background: var(–harness-c); }
+
+main { padding: 48px 56px; max-width: 860px; }
+
+/* HERO */
+.hero { margin-bottom: 56px; }
+.hero .eyebrow {
+font-family: var(–mono);
+font-size: 11px;
+letter-spacing: 0.14em;
+color: var(–blue);
+text-transform: uppercase;
+margin-bottom: 14px;
+}
+.hero h2 {
+font-family: var(–mono);
+font-size: 30px;
+font-weight: 700;
+line-height: 1.25;
+color: var(–text);
+margin-bottom: 16px;
+}
+.hero p { color: var(–muted); font-size: 15px; max-width: 600px; line-height: 1.8; }
+
+/* LAYER DIAGRAM */
+.diagram-wrap { margin-bottom: 56px; }
+.diagram-label {
+font-family: var(–mono);
+font-size: 11px;
+letter-spacing: 0.1em;
+color: var(–muted);
+text-transform: uppercase;
+margin-bottom: 16px;
+}
+.layer {
+width: 100%;
+border-radius: 10px;
+padding: 20px 28px;
+cursor: pointer;
+transition: all 0.2s;
+}
+.layer-harness {
+background: rgba(240,165,0,0.06);
+border: 1.5px solid rgba(240,165,0,0.3);
+padding: 24px 28px;
+}
+.layer-context {
+background: rgba(88,166,255,0.06);
+border: 1.5px solid rgba(88,166,255,0.3);
+margin: 12px 32px 0;
+padding: 20px 24px;
+}
+.layer-prompt {
+background: rgba(61,220,151,0.06);
+border: 1.5px solid rgba(61,220,151,0.3);
+margin: 12px 64px 0;
+padding: 16px 20px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+}
+.layer:hover { transform: scale(1.01); filter: brightness(1.1); }
+.layer-tag {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+font-weight: 700;
+margin-bottom: 4px;
+}
+.layer-harness .layer-tag { color: var(–harness-c); }
+.layer-context .layer-tag { color: var(–context-c); }
+.layer-prompt  .layer-tag { color: var(–prompt-c); }
+.layer-title { font-size: 14px; font-weight: 600; color: var(–text); }
+.layer-q { font-size: 12px; color: var(–muted); margin-top: 2px; }
+
+/* SECTION */
+.section { margin-bottom: 64px; scroll-margin-top: 80px; }
+.section-header {
+display: flex;
+align-items: center;
+gap: 14px;
+margin-bottom: 24px;
+padding-bottom: 16px;
+border-bottom: 1px solid var(–border);
+}
+.section-badge {
+font-family: var(–mono);
+font-size: 11px;
+font-weight: 700;
+letter-spacing: 0.08em;
+padding: 4px 10px;
+border-radius: 4px;
+text-transform: uppercase;
+}
+.badge-prompt  { background: rgba(61,220,151,0.12);  color: var(–prompt-c); }
+.badge-context { background: rgba(88,166,255,0.12);  color: var(–context-c); }
+.badge-harness { background: rgba(240,165,0,0.12);   color: var(–harness-c); }
+.section-title { font-family: var(–mono); font-size: 20px; font-weight: 700; color: var(–text); }
+
+.problem-box {
+background: var(–surface);
+border: 1px solid var(–border);
+border-left: 3px solid var(–red);
+border-radius: 8px;
+padding: 16px 20px;
+margin-bottom: 20px;
+font-size: 14px;
+}
+.problem-box .pb-label {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 0.1em;
+color: var(–red);
+text-transform: uppercase;
+margin-bottom: 6px;
+}
+.problem-box p { color: var(–muted); }
+
+.body-text { color: var(–muted); font-size: 14px; line-height: 1.85; margin-bottom: 24px; }
+.body-text strong { color: var(–text); font-weight: 600; }
+
+.code-wrap {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 8px;
+overflow: hidden;
+margin-bottom: 20px;
+font-family: var(–mono);
+font-size: 13px;
+}
+.code-title {
+background: var(–surface2);
+border-bottom: 1px solid var(–border);
+padding: 8px 16px;
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 11px;
+color: var(–muted);
+}
+.code-title .dot-r { width:10px;height:10px;border-radius:50%;background:#FF5F57; }
+.code-title .dot-a { width:10px;height:10px;border-radius:50%;background:#FEBC2E; }
+.code-title .dot-g { width:10px;height:10px;border-radius:50%;background:#28C840; }
+.code-title .fn { margin-left:6px; }
+.code-body { padding: 20px; white-space: pre; overflow-x: auto; line-height: 1.7; }
+.c-bad  { color: #FF6B6B; }
+.c-good { color: var(–green); }
+.c-key  { color: var(–blue); }
+.c-str  { color: var(–amber); }
+.c-cmt  { color: #555E6B; }
+.c-num  { color: #CE91F5; }
+
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.compare-card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 16px;
+}
+.compare-card .cc-label {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+margin-bottom: 10px;
+}
+.cc-bad  .cc-label { color: var(–red); }
+.cc-good .cc-label { color: var(–green); }
+.compare-card p { font-family: var(–mono); font-size: 12px; color: var(–muted); line-height: 1.65; }
+.compare-card p strong { color: var(–text); }
+
+.flow {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 24px;
+margin-bottom: 24px;
+}
+.flow-label {
+font-family: var(–mono);
+font-size: 11px;
+color: var(–muted);
+margin-bottom: 16px;
+letter-spacing: 0.08em;
+text-transform: uppercase;
+}
+.flow-row { display: flex; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px; }
+.flow-row:last-child { margin-bottom: 0; }
+.flow-box {
+background: var(–surface2);
+border: 1px solid var(–border);
+border-radius: 6px;
+padding: 7px 13px;
+font-family: var(–mono);
+font-size: 12px;
+color: var(–text);
+white-space: nowrap;
+}
+.fb-ok   { border-color: var(–green); color: var(–green); }
+.fb-warn { border-color: var(–amber); color: var(–amber); }
+.fb-crit { border-color: var(–red);   color: var(–red);   }
+.fb-log  { border-color: #8957E5;      color: #8957E5; }
+.fb-muted{ color: var(–muted); }
+.flow-arr { color: var(–muted); font-size: 16px; padding: 0 6px; }
+.flow-divider { border-top: 1px solid var(–border); margin: 12px 0; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chip {
+font-family: var(–mono);
+font-size: 11px;
+padding: 4px 12px;
+border-radius: 100px;
+border: 1px solid;
+}
+.chip-p { border-color: rgba(61,220,151,0.4); color: var(–prompt-c); background: rgba(61,220,151,0.06); }
+.chip-c { border-color: rgba(88,166,255,0.4); color: var(–context-c); background: rgba(88,166,255,0.06); }
+.chip-h { border-color: rgba(240,165,0,0.4);  color: var(–harness-c); background: rgba(240,165,0,0.06); }
+
+.summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.summary-table th {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+color: var(–muted);
+text-align: left;
+padding: 10px 14px;
+border-bottom: 1px solid var(–border);
+font-weight: 600;
+}
+.summary-table td {
+padding: 12px 14px;
+border-bottom: 1px solid var(–border);
+color: var(–text);
+vertical-align: top;
+}
+.summary-table tr:last-child td { border-bottom: none; }
+.summary-table td:first-child { font-family: var(–mono); font-size: 12px; font-weight: 700; }
+.summary-table tr:hover td { background: var(–surface2); }
+
+footer {
+margin-top: 32px;
+padding: 24px 56px;
+border-top: 1px solid var(–border);
+font-family: var(–mono);
+font-size: 11px;
+color: var(–muted);
+letter-spacing: 0.06em;
+}
+</style>
+
+</head>
+<body>
+
+<header>
+  <div class="logo">LLM<span>_ENG</span></div>
+  <h1>Prompt / Context / Harness Engineering</h1>
+</header>
+
+<div class="shell">
+
+  <nav>
+    <div class="nav-label">Contents</div>
+    <a href="#overview" class="active"><span class="dot" style="background:var(--muted)"></span>概要</a>
+    <a href="#prompt"  class="nav-prompt"><span class="dot"></span>Prompt Engineering</a>
+    <a href="#context" class="nav-context"><span class="dot"></span>Context Engineering</a>
+    <a href="#harness" class="nav-harness"><span class="dot"></span>Harness Engineering</a>
+    <a href="#summary"><span class="dot" style="background:var(--muted)"></span>まとめ</a>
+  </nav>
+
+  <main>
+
+```
+<!-- HERO -->
+<div class="hero" id="overview">
+  <div class="eyebrow">LLM Engineering Layers</div>
+  <h2>モデルは変えない。<br>使い方を設計する。</h2>
+  <p>LLMをプロダクションで信頼性高く動かすには、3つの設計レイヤーが必要です。それぞれが異なる問題を解決し、組み合わさって初めて「使えるシステム」になります。</p>
+</div>
+
+<!-- DIAGRAM -->
+<div class="diagram-wrap">
+  <div class="diagram-label">3層の入れ子構造</div>
+  <div class="layer layer-harness" onclick="location.href='#harness'">
+    <div class="layer-tag">Layer 3</div>
+    <div class="layer-title">🔩 Harness Engineering</div>
+    <div class="layer-q">出力をどう使うか ── 検証・制御・評価の骨格</div>
+    <div class="layer layer-context" onclick="location.href='#context';event.stopPropagation()">
+      <div class="layer-tag">Layer 2</div>
+      <div class="layer-title">📦 Context Engineering</div>
+      <div class="layer-q">何を見せるか ── 情報の取捨選択と注入</div>
+      <div class="layer layer-prompt" onclick="location.href='#prompt';event.stopPropagation()">
+        <div>
+          <div class="layer-tag">Layer 1</div>
+          <div class="layer-title">✏️ Prompt Engineering</div>
+          <div class="layer-q">どう頼むか ── 発話の設計</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--muted);padding:6px 12px;background:rgba(61,220,151,0.08);border:1px solid rgba(61,220,151,0.2);border-radius:6px;">🤖 LLM</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROMPT -->
+<section class="section" id="prompt">
+  <div class="section-header">
+    <div class="section-badge badge-prompt">Layer 1</div>
+    <div class="section-title">Prompt Engineering</div>
+  </div>
+  <div class="problem-box">
+    <div class="pb-label">解決する問題</div>
+    <p>同じ質問でも聞き方ひとつで出力が全く変わる。モデル自体を変えずに<strong style="color:var(--text)">入力の設計</strong>で精度を上げる。</p>
+  </div>
+  <p class="body-text">LLMは確率的なテキスト補完エンジンです。「どう聞くか」が出力品質を大きく左右します。適切な役割・制約・出力形式を指定するだけで、同じモデルから全く異なる品質の回答が得られます。</p>
+  <div class="code-wrap">
+    <div class="code-title"><span class="dot-r"></span><span class="dot-a"></span><span class="dot-g"></span><span class="fn">例：回路図ネットリスト解析タスク</span></div>
+    <div class="code-body"><span class="c-cmt">// ❌ 悪いプロンプト ── 出力が毎回バラバラ</span>
+```
+
+<span class="c-bad">“このネットリストを解析してください”</span>
+
+<span class="c-cmt">// ✅ 良いプロンプト ── 構造化された出力が安定して得られる</span>
+<span class="c-good">”””
+あなたはEDAツールの専門家です。
+以下のKiCad netlistから：
+
+1. 未接続ピンを列挙
+1. VCC/GNDに未接続のコンポーネントを警告
+1. 出力は必ずJSON形式で返すこと
+
+制約：
+
+- 推測で補完しないこと
+- 不明な場合は “UNKNOWN” を返すこと
+- コメントや説明文は不要
+  “””</span></div>
+  </div>
+  <div class="compare">
+  <div class="compare-card cc-bad">
+  <div class="cc-label">❌ 悪い例の出力</div>
+  <p>「解析しました。いくつか問題があります。まずピンについてですが…（以下文章）」<br><br>→ <strong>パースできない</strong></p>
+  </div>
+  <div class="compare-card cc-good">
+  <div class="cc-label">✅ 良い例の出力</div>
+  <p><strong>{ “unconnected”: [“U1.PIN3”], “warnings”: [“C2: no VCC”] }</strong><br><br>→ <strong>即座にシステムに組み込める</strong></p>
+  </div>
+  </div>
+  <div class="chips">
+  <span class="chip chip-p">Chain-of-Thought</span>
+  <span class="chip chip-p">Few-shot Examples</span>
+  <span class="chip chip-p">Role Prompting</span>
+  <span class="chip chip-p">Negative Constraints</span>
+  <span class="chip chip-p">Output Format Spec</span>
+  </div>
+  
+    </section>
+  
+    <!-- CONTEXT -->
+  
+    <section class="section" id="context">
+      <div class="section-header">
+        <div class="section-badge badge-context">Layer 2</div>
+        <div class="section-title">Context Engineering</div>
+      </div>
+      <div class="problem-box">
+        <div class="pb-label">解決する問題</div>
+        <p>モデルの「作業記憶（コンテキストウィンドウ）」に何を入れるかを設計する。情報過多・コスト増大・精度劣化を防ぐ。</p>
+      </div>
+      <p class="body-text">LLMは渡された情報しか使えません。しかし情報を詰め込みすぎると<strong>コストが爆発し、精度が落ちます</strong>（Lost-in-the-Middle問題）。何を入れ、何を捨てるかを設計するのがContext Engineeringです。</p>
+      <div class="code-wrap">
+        <div class="code-title"><span class="dot-r"></span><span class="dot-a"></span><span class="dot-g"></span><span class="fn">例：中日バイリンガル会議録の要約パイプライン</span></div>
+        <div class="code-body"><span class="c-cmt"># 問題：1時間の会議録 ≈ 1万トークン → 全部詰め込むとコスト・精度が悪化</span>
+
+<span class="c-cmt"># Context Engineering の設計</span>
+
+<span class="c-key">STEP 1</span>  <span class="c-str">発話者セグメント分割</span>
+pyannote → speaker_A / speaker_B / speaker_C に分類
+
+<span class="c-key">STEP 2</span>  <span class="c-str">スパース化（重要発話のみ抽出）</span>
+「決定」「TODO」「懸念」を含む発話のみ保持
+→ <span class="c-good">~80% のトークン削減</span>
+
+<span class="c-key">STEP 3</span>  <span class="c-str">ローリングウィンドウ</span>
+直前5分の発言のみを短期メモリとして保持
+
+<span class="c-key">STEP 4</span>  <span class="c-str">ドメイン辞書を先頭に注入</span>
+ES / CS / BRK / EVT 等のフェーズ略語辞書
+→ LLMが誤解釈しなくなる
+
+<span class="c-cmt"># 結果：同じモデルでも精度が大幅向上、コスト 1/5 以下</span></div>
+</div>
+<p class="body-text"><strong>RAG（検索拡張生成）</strong>もContext Engineeringの一形態です。全ドキュメントを丸ごと渡すのではなく、クエリに関連する断片だけを動的にコンテキストへ注入します。</p>
+<div class="chips">
+<span class="chip chip-c">RAG</span>
+<span class="chip chip-c">Sliding Window</span>
+<span class="chip chip-c">Semantic Chunking</span>
+<span class="chip chip-c">Metadata Filtering</span>
+<span class="chip chip-c">Domain Dictionary Injection</span>
+<span class="chip chip-c">Sparse Retrieval</span>
+</div>
+</section>
+
+```
+<!-- HARNESS -->
+<section class="section" id="harness">
+  <div class="section-header">
+    <div class="section-badge badge-harness">Layer 3</div>
+    <div class="section-title">Harness Engineering</div>
+  </div>
+  <div class="problem-box">
+    <div class="pb-label">解決する問題</div>
+    <p>LLMの出力は確率的で非決定論的。そのままではシステムに組み込めない。出力の<strong style="color:var(--text)">検証・リトライ・ルーティング・評価</strong>を自動化する外骨格が必要。</p>
+  </div>
+  <p class="body-text">プロンプトとコンテキストが整っても、LLMは<strong>毎回同じ形式で返すとは限りません</strong>。Harnessは出力をキャッチして「使えるかどうか」を判定し、フォールバックや通知、ログ記録まで含めたシステム全体の信頼性を保証します。</p>
+  <div class="code-wrap">
+    <div class="code-title"><span class="dot-r"></span><span class="dot-a"></span><span class="dot-g"></span><span class="fn">例：ハードウェア不具合レポートの自動分類システム</span></div>
+    <div class="code-body"><span class="c-cmt"># 問題：LLMに重大度を判定させると出力形式がバラバラ</span>
+```
+
+<span class="c-bad"># “High” / “致命的” / “クリティカル” / “重要度：高” … → パース不可能</span>
+
+<span class="c-cmt"># Harness の設計</span>
+
+<span class="c-key">class</span> <span class="c-str">DefectClassifier</span>:
+<span class="c-key">def</span> classify(self, report: str) -> ClassifyResult:
+
+```
+    <span class="c-key">for</span> attempt <span class="c-key">in</span> range(<span class="c-num">3</span>):           <span class="c-cmt"># [1] リトライ</span>
+        response = llm.call(prompt, report)
+
+        <span class="c-key">if</span> is_valid_json(response):       <span class="c-cmt"># [2] バリデーション</span>
+            result = parse(response)
+            self.log(report, result)        <span class="c-cmt"># [3] 評価ログ</span>
+
+            <span class="c-key">if</span> result.severity == <span class="c-str">"Critical"</span>: <span class="c-cmt"># [4] ルーティング</span>
+                slack.notify_immediate()
+            <span class="c-key">else</span>:
+                weekly_report.buffer(result)
+
+            <span class="c-key">return</span> result
+
+    <span class="c-key">raise</span> HarnessError(<span class="c-str">"invalid after 3 retries"</span>)</div>
+  </div>
+  <div class="flow">
+    <div class="flow-label">処理フロー</div>
+    <div class="flow-row">
+      <div class="flow-box fb-muted">📄 不具合レポート</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">LLM 呼び出し</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box">JSON バリデーター</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box fb-ok">✓ OK → ルーター</div>
+    </div>
+    <div class="flow-row" style="padding-left:24px;">
+      <div class="flow-box fb-warn">✗ NG</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box fb-warn">リトライ（max 3）</div>
+    </div>
+    <div class="flow-divider"></div>
+    <div class="flow-row">
+      <div class="flow-box fb-crit">🔴 Critical</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box fb-crit">Slack 即時通知</div>
+      <div style="width:20px;"></div>
+      <div class="flow-box fb-muted">🟡 Low</div>
+      <div class="flow-arr">→</div>
+      <div class="flow-box fb-muted">週次バッファ</div>
+      <div style="width:20px;"></div>
+      <div class="flow-box fb-log">📊 全件ログ → 改善</div>
+    </div>
+  </div>
+  <div class="chips">
+    <span class="chip chip-h">Structured Output</span>
+    <span class="chip chip-h">Retry Logic</span>
+    <span class="chip chip-h">LLM-as-Judge</span>
+    <span class="chip chip-h">Guardrails</span>
+    <span class="chip chip-h">Multi-agent Routing</span>
+    <span class="chip chip-h">Feedback Logging</span>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section class="section" id="summary">
+  <div class="section-header">
+    <div class="section-title" style="font-size:16px;">まとめ</div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:24px;">
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>レイヤー</th>
+          <th>問い</th>
+          <th>対象</th>
+          <th>プロダクションでの役割</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--prompt-c)">Prompt</td>
+          <td>どう頼むか</td>
+          <td>発話設計</td>
+          <td>出力品質・形式の安定化</td>
+        </tr>
+        <tr>
+          <td style="color:var(--context-c)">Context</td>
+          <td>何を見せるか</td>
+          <td>情報設計</td>
+          <td>コスト削減・精度向上</td>
+        </tr>
+        <tr>
+          <td style="color:var(--harness-c)">Harness</td>
+          <td>出力をどう使うか</td>
+          <td>システム設計</td>
+          <td>信頼性・可観測性の保証</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="body-text">3つのレイヤーはそれぞれ独立した問題を解決しますが、<strong>プロダクションではすべてが必要です</strong>。優れたプロンプトだけでは出力の安定性は保証されない。膨大なコンテキストをそのまま渡してもコストが爆発する。そしてハーネスなしでは、どれだけ良い回答が返っても「使えない」ままです。</p>
+</section>
+```
+
+  </main>
+</div>
+
+<footer>LLM Engineering Reference · Prompt / Context / Harness</footer>
+
+<script>
+  const sections = document.querySelectorAll('.section, .hero');
+  const navLinks = document.querySelectorAll('nav a');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const m = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (m) m.classList.add('active');
+      }
+    });
+  }, { threshold: 0.4 });
+  sections.forEach(s => { if (s.id) observer.observe(s); });
+</script>
+
+</body>
+</html>
