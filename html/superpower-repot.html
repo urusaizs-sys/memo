@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Superpowers × LLM Engineering Layers</title>
+<style>
+  :root {
+    --bg:        #0D1117;
+    --surface:   #161B22;
+    --surface2:  #1C2333;
+    --border:    #30363D;
+    --blue:      #58A6FF;
+    --amber:     #F0A500;
+    --green:     #3DDC97;
+    --red:       #FF6B6B;
+    --purple:    #CE91F5;
+    --text:      #E6EDF3;
+    --muted:     #8B949E;
+    --prompt-c:  #3DDC97;
+    --context-c: #58A6FF;
+    --harness-c: #F0A500;
+    --sp-c:      #CE91F5;
+    --mono: 'JetBrains Mono','Fira Code','Cascadia Code','Consolas','Menlo',monospace;
+    --sans: 'Inter','Hiragino Sans','Noto Sans JP','Yu Gothic',system-ui,sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+/* HEADER */
+header {
+border-bottom: 1px solid var(–border);
+padding: 18px 40px;
+display: flex; align-items: center; gap: 16px;
+position: sticky; top: 0;
+background: rgba(13,17,23,0.94);
+backdrop-filter: blur(8px);
+z-index: 100;
+}
+.logo { font-family: var(–mono); font-weight: 700; font-size: 13px; color: var(–muted); letter-spacing: 0.08em; }
+.logo span { color: var(–purple); }
+header h1 { font-family: var(–mono); font-size: 13px; font-weight: 600; color: var(–text); margin-left: auto; }
+
+/* LAYOUT */
+.shell { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 59px); }
+
+/* NAV */
+nav { border-right: 1px solid var(–border); padding: 28px 0; position: sticky; top: 59px; height: calc(100vh - 59px); overflow-y: auto; }
+nav .nav-label { font-family: var(–mono); font-size: 10px; letter-spacing: 0.12em; color: var(–muted); padding: 0 24px 8px; text-transform: uppercase; }
+nav .nav-sep { border-top: 1px solid var(–border); margin: 12px 0 12px; }
+nav a { display: flex; align-items: center; gap: 10px; padding: 8px 24px; text-decoration: none; color: var(–muted); font-size: 13px; font-weight: 500; transition: all 0.15s; border-left: 2px solid transparent; }
+nav a:hover { color: var(–text); background: var(–surface); }
+nav a.active { color: var(–text); border-left-color: var(–purple); background: var(–surface); }
+nav a .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* MAIN */
+main { padding: 44px 56px; max-width: 900px; }
+
+/* HERO */
+.hero { margin-bottom: 52px; }
+.hero .eyebrow { font-family: var(–mono); font-size: 11px; letter-spacing: 0.14em; color: var(–purple); text-transform: uppercase; margin-bottom: 14px; }
+.hero h2 { font-family: var(–mono); font-size: 28px; font-weight: 700; line-height: 1.3; color: var(–text); margin-bottom: 14px; }
+.hero p { color: var(–muted); font-size: 14px; max-width: 620px; line-height: 1.85; }
+
+/* SECTION */
+.section { margin-bottom: 60px; scroll-margin-top: 75px; }
+.section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(–border); }
+.section-badge { font-family: var(–mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; }
+.badge-sp      { background: rgba(206,145,245,0.12); color: var(–sp-c); }
+.badge-prompt  { background: rgba(61,220,151,0.12);  color: var(–prompt-c); }
+.badge-context { background: rgba(88,166,255,0.12);  color: var(–context-c); }
+.badge-harness { background: rgba(240,165,0,0.12);   color: var(–harness-c); }
+.section-title { font-family: var(–mono); font-size: 19px; font-weight: 700; color: var(–text); }
+
+/* BODY TEXT */
+.body-text { color: var(–muted); font-size: 14px; line-height: 1.85; margin-bottom: 22px; }
+.body-text strong { color: var(–text); font-weight: 600; }
+
+/* INFO BOX */
+.info-box { background: var(–surface); border: 1px solid var(–border); border-left: 3px solid var(–purple); border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 14px; }
+.info-box .ib-label { font-family: var(–mono); font-size: 10px; letter-spacing: 0.1em; color: var(–purple); text-transform: uppercase; margin-bottom: 5px; }
+.info-box p { color: var(–muted); }
+
+/* ══════════════════════════════════
+BIG ARCHITECTURE DIAGRAM
+══════════════════════════════════ */
+.arch-diagram {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 12px;
+padding: 32px;
+margin-bottom: 28px;
+position: relative;
+overflow: hidden;
+}
+.arch-diagram::before {
+content: ‘’;
+position: absolute; inset: 0;
+background: radial-gradient(ellipse at 50% 0%, rgba(206,145,245,0.04) 0%, transparent 65%);
+pointer-events: none;
+}
+.arch-title { font-family: var(–mono); font-size: 10px; letter-spacing: 0.12em; color: var(–muted); text-transform: uppercase; margin-bottom: 24px; }
+
+/* outer Harness shell */
+.arch-harness {
+border: 1.5px solid rgba(240,165,0,0.35);
+border-radius: 10px;
+padding: 18px;
+background: rgba(240,165,0,0.03);
+position: relative;
+}
+.arch-harness-label {
+font-family: var(–mono); font-size: 10px; font-weight: 700;
+letter-spacing: 0.1em; text-transform: uppercase;
+color: var(–harness-c); margin-bottom: 4px;
+}
+.arch-harness-desc { font-size: 12px; color: var(–muted); margin-bottom: 14px; }
+
+/* middle Context shell */
+.arch-context {
+border: 1.5px solid rgba(88,166,255,0.35);
+border-radius: 8px;
+padding: 16px;
+background: rgba(88,166,255,0.03);
+margin-bottom: 0;
+}
+.arch-context-label {
+font-family: var(–mono); font-size: 10px; font-weight: 700;
+letter-spacing: 0.1em; text-transform: uppercase;
+color: var(–context-c); margin-bottom: 4px;
+}
+.arch-context-desc { font-size: 12px; color: var(–muted); margin-bottom: 12px; }
+
+/* inner Prompt + LLM row */
+.arch-inner { display: flex; gap: 10px; align-items: stretch; }
+.arch-prompt {
+flex: 1;
+border: 1.5px solid rgba(61,220,151,0.35);
+border-radius: 6px;
+padding: 12px 14px;
+background: rgba(61,220,151,0.03);
+}
+.arch-prompt-label {
+font-family: var(–mono); font-size: 10px; font-weight: 700;
+letter-spacing: 0.1em; text-transform: uppercase;
+color: var(–prompt-c); margin-bottom: 3px;
+}
+.arch-prompt-desc { font-size: 11px; color: var(–muted); }
+.arch-llm {
+width: 90px;
+border: 1px solid rgba(206,145,245,0.3);
+border-radius: 6px;
+background: rgba(206,145,245,0.06);
+display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+padding: 10px;
+}
+.arch-llm-icon { font-size: 22px; }
+.arch-llm-label { font-family: var(–mono); font-size: 10px; color: var(–purple); font-weight: 700; letter-spacing: 0.06em; }
+
+/* SP overlay badges */
+.sp-badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(–border); }
+.sp-badge {
+font-family: var(–mono); font-size: 10px; font-weight: 700;
+padding: 3px 9px; border-radius: 100px;
+border: 1px solid rgba(206,145,245,0.4);
+color: var(–purple); background: rgba(206,145,245,0.06);
+letter-spacing: 0.04em;
+}
+.sp-badge-label { font-family: var(–mono); font-size: 10px; color: var(–muted); align-self: center; letter-spacing: 0.06em; }
+
+/* ══════════════════════════════════
+5-PHASE FLOW
+══════════════════════════════════ */
+.phase-flow { display: flex; align-items: stretch; gap: 0; margin-bottom: 24px; overflow-x: auto; }
+.phase-item { flex: 1; min-width: 110px; position: relative; }
+.phase-box {
+border: 1.5px solid var(–border);
+border-radius: 8px;
+padding: 14px 12px;
+background: var(–surface);
+height: 100%;
+transition: all 0.15s;
+cursor: default;
+}
+.phase-box:hover { border-color: var(–purple); background: var(–surface2); }
+.phase-num { font-family: var(–mono); font-size: 10px; color: var(–muted); letter-spacing: 0.06em; margin-bottom: 5px; }
+.phase-name { font-family: var(–mono); font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+.phase-desc { font-size: 11px; color: var(–muted); line-height: 1.55; }
+.phase-layer { font-family: var(–mono); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 8px; opacity: 0.8; }
+.ph-clarify  .phase-name { color: var(–blue); }
+.ph-design   .phase-name { color: var(–context-c); }
+.ph-plan     .phase-name { color: var(–amber); }
+.ph-code     .phase-name { color: var(–prompt-c); }
+.ph-verify   .phase-name { color: var(–red); }
+.ph-clarify  .phase-layer { color: var(–harness-c); }
+.ph-design   .phase-layer { color: var(–context-c); }
+.ph-plan     .phase-layer { color: var(–harness-c); }
+.ph-code     .phase-layer { color: var(–prompt-c); }
+.ph-verify   .phase-layer { color: var(–harness-c); }
+.phase-arrow { display: flex; align-items: center; padding: 0 6px; color: var(–muted); font-size: 16px; align-self: center; flex-shrink: 0; }
+
+/* ══════════════════════════════════
+SKILL GRID
+══════════════════════════════════ */
+.skill-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+.skill-card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 8px;
+padding: 14px 16px;
+transition: all 0.15s;
+}
+.skill-card:hover { border-color: var(–purple); }
+.skill-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.skill-card-icon { font-size: 16px; }
+.skill-card-name { font-family: var(–mono); font-size: 12px; font-weight: 700; color: var(–text); }
+.skill-card-layer { font-family: var(–mono); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-left: auto; }
+.layer-p { color: var(–prompt-c); }
+.layer-c { color: var(–context-c); }
+.layer-h { color: var(–harness-c); }
+.skill-card-desc { font-size: 12px; color: var(–muted); line-height: 1.55; }
+
+/* ══════════════════════════════════
+MAPPING TABLE
+══════════════════════════════════ */
+.map-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+.map-table th { font-family: var(–mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(–muted); text-align: left; padding: 10px 14px; border-bottom: 1px solid var(–border); font-weight: 600; }
+.map-table td { padding: 11px 14px; border-bottom: 1px solid var(–border); vertical-align: top; }
+.map-table tr:last-child td { border-bottom: none; }
+.map-table tr:hover td { background: var(–surface2); }
+.map-table td:first-child { font-family: var(–mono); font-size: 12px; font-weight: 700; }
+
+/* ══════════════════════════════════
+VS COMPARISON
+══════════════════════════════════ */
+.vs-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; margin-bottom: 24px; }
+.vs-card { background: var(–surface); border: 1px solid var(–border); border-radius: 10px; padding: 20px; }
+.vs-card-title { font-family: var(–mono); font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+.vs-card.sp  .vs-card-title { color: var(–purple); }
+.vs-card.max .vs-card-title { color: var(–amber); }
+.vs-item { font-size: 13px; color: var(–muted); padding: 5px 0; border-bottom: 1px solid var(–border); display: flex; gap: 8px; align-items: baseline; }
+.vs-item:last-child { border-bottom: none; }
+.vs-item .vi-key { font-family: var(–mono); font-size: 10px; color: var(–text); min-width: 70px; }
+.vs-badge { font-family: var(–mono); font-size: 22px; font-weight: 900; color: var(–muted); text-align: center; }
+
+/* CHIPS */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip { font-family: var(–mono); font-size: 11px; padding: 4px 12px; border-radius: 100px; border: 1px solid; }
+.chip-p { border-color: rgba(61,220,151,0.4);  color: var(–prompt-c);  background: rgba(61,220,151,0.06); }
+.chip-c { border-color: rgba(88,166,255,0.4);  color: var(–context-c); background: rgba(88,166,255,0.06); }
+.chip-h { border-color: rgba(240,165,0,0.4);   color: var(–harness-c); background: rgba(240,165,0,0.06); }
+.chip-s { border-color: rgba(206,145,245,0.4); color: var(–sp-c);      background: rgba(206,145,245,0.06); }
+
+/* CODE */
+.code-wrap { background: var(–surface); border: 1px solid var(–border); border-radius: 8px; overflow: hidden; margin-bottom: 18px; font-family: var(–mono); font-size: 13px; }
+.code-title { background: var(–surface2); border-bottom: 1px solid var(–border); padding: 7px 14px; display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(–muted); }
+.dot-r { width:9px;height:9px;border-radius:50%;background:#FF5F57; }
+.dot-a { width:9px;height:9px;border-radius:50%;background:#FEBC2E; }
+.dot-g { width:9px;height:9px;border-radius:50%;background:#28C840; }
+.fn { margin-left:5px; }
+.code-body { padding: 18px 20px; white-space: pre; overflow-x: auto; line-height: 1.7; }
+.c-cmt  { color: #4A5568; }
+.c-key  { color: var(–blue); }
+.c-str  { color: var(–amber); }
+.c-good { color: var(–green); }
+.c-bad  { color: var(–red); }
+.c-sp   { color: var(–purple); }
+
+/* FOOTER */
+footer { margin-top: 24px; padding: 22px 56px; border-top: 1px solid var(–border); font-family: var(–mono); font-size: 11px; color: var(–muted); letter-spacing: 0.06em; }
+</style>
+
+</head>
+<body>
+
+<header>
+  <div class="logo">LLM<span>_SP</span></div>
+  <h1>Superpowers × Prompt / Context / Harness Engineering</h1>
+</header>
+
+<div class="shell">
+
+  <!-- NAV -->
+
+  <nav>
+    <div class="nav-label">Contents</div>
+    <a href="#overview" class="active"><span class="dot" style="background:var(--purple)"></span>概要</a>
+    <a href="#architecture"><span class="dot" style="background:var(--muted)"></span>アーキテクチャ図</a>
+    <a href="#phases"><span class="dot" style="background:var(--blue)"></span>5フェーズ</a>
+    <a href="#skills"><span class="dot" style="background:var(--purple)"></span>14スキル</a>
+    <div class="nav-sep"></div>
+    <div class="nav-label">3層との対応</div>
+    <a href="#prompt-map"><span class="dot" style="background:var(--prompt-c)"></span>Prompt層</a>
+    <a href="#context-map"><span class="dot" style="background:var(--context-c)"></span>Context層</a>
+    <a href="#harness-map"><span class="dot" style="background:var(--harness-c)"></span>Harness層</a>
+    <div class="nav-sep"></div>
+    <a href="#vs"><span class="dot" style="background:var(--amber)"></span>vs Max Plan</a>
+  </nav>
+
+  <main>
+
+```
+<!-- HERO -->
+<div class="hero" id="overview">
+  <div class="eyebrow">Community Plugin Analysis</div>
+  <h2>Superpowers は<br>3層エンジニアリングの<br>実装パッケージである</h2>
+  <p>Jesse Vincent（Prime Radiant）が開発したClaude Code用OSSプラグイン。14種類のスキルファイルをコンテキストに注入し、5フェーズの構造化ワークフローを強制することで、トークン消費を削減しながら出力品質を高める。その仕組みはPrompt / Context / Harnessの3層エンジニアリングそのものを体現している。</p>
+  <div class="chips" style="margin-top:16px;">
+    <span class="chip chip-s">OSSプラグイン</span>
+    <span class="chip chip-s">無料</span>
+    <span class="chip chip-s">14スキル同梱</span>
+    <span class="chip chip-s">npm配布</span>
+  </div>
+</div>
+
+<!-- ARCHITECTURE DIAGRAM -->
+<section class="section" id="architecture">
+  <div class="section-header">
+    <div class="section-badge badge-sp">Overview</div>
+    <div class="section-title">アーキテクチャ図</div>
+  </div>
+
+  <p class="body-text">Superpowersの内部構造は、そのまま3層エンジニアリングの入れ子になっています。各層にどのコンポーネントが対応するかを示します。</p>
+
+  <div class="arch-diagram">
+    <div class="arch-title">Superpowers Plugin — 層対応図</div>
+
+    <!-- Harness outer -->
+    <div class="arch-harness">
+      <div class="arch-harness-label">🔩 Harness Engineering</div>
+      <div class="arch-harness-desc">フェーズゲート制御 · チェックボックス状態管理 · セッション復元 · リトライ制御</div>
+
+      <!-- Context middle -->
+      <div class="arch-context">
+        <div class="arch-context-label">📦 Context Engineering</div>
+        <div class="arch-context-desc">CLAUDE.md · 14スキルファイル（markdown） · ドメイン知識の動的注入 · セッション開始時ロード</div>
+
+        <!-- Prompt + LLM inner -->
+        <div class="arch-inner">
+          <div class="arch-prompt">
+            <div class="arch-prompt-label">✏️ Prompt Engineering</div>
+            <div class="arch-prompt-desc">フェーズ別最適プロンプト設計<br>clarify / design / plan / code / verify</div>
+          </div>
+          <div class="arch-llm">
+            <div class="arch-llm-icon">🤖</div>
+            <div class="arch-llm-label">Claude</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SP component badges -->
+      <div class="sp-badge-row">
+        <span class="sp-badge-label">SP実装：</span>
+        <span class="sp-badge">dispatcher</span>
+        <span class="sp-badge">plan.md</span>
+        <span class="sp-badge">git worktree</span>
+        <span class="sp-badge">TDD checkpoint</span>
+        <span class="sp-badge">visual companion</span>
+        <span class="sp-badge">subagent routing</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div class="ib-label">Key Insight</div>
+    <p>Superpowersは「プラグイン」という形でパッケージングされているが、本質的にはClaude Codeのコンテキストウィンドウに<strong style="color:var(--text)">何をいつどの順序で注入するか</strong>を設計したContext Engineeringの産物。スキルファイル（markdown）がその媒体。</p>
+  </div>
+</section>
+
+<!-- 5 PHASES -->
+<section class="section" id="phases">
+  <div class="section-header">
+    <div class="section-badge badge-sp">Workflow</div>
+    <div class="section-title">5フェーズ強制ワークフロー</div>
+  </div>
+
+  <p class="body-text">各フェーズが<strong>次のフェーズへのゲート</strong>として機能します。前フェーズを完了しないと次に進めない設計が、Harnessとしての役割を担っています。</p>
+
+  <div class="phase-flow">
+    <div class="phase-item ph-clarify">
+      <div class="phase-box">
+        <div class="phase-num">01</div>
+        <div class="phase-name">Clarify</div>
+        <div class="phase-desc">要件の曖昧さを排除。質問リストを生成し合意を得る</div>
+        <div class="phase-layer">Harness Gate</div>
+      </div>
+    </div>
+    <div class="phase-arrow">→</div>
+    <div class="phase-item ph-design">
+      <div class="phase-box">
+        <div class="phase-num">02</div>
+        <div class="phase-name">Design</div>
+        <div class="phase-desc">システム設計・コンポーネント構造・パターン選定</div>
+        <div class="phase-layer">Context Injection</div>
+      </div>
+    </div>
+    <div class="phase-arrow">→</div>
+    <div class="phase-item ph-plan">
+      <div class="phase-box">
+        <div class="phase-num">03</div>
+        <div class="phase-name">Plan</div>
+        <div class="phase-desc">2〜5分タスクに分解。ファイルパス・コマンドを明記したplan.md生成</div>
+        <div class="phase-layer">Harness State</div>
+      </div>
+    </div>
+    <div class="phase-arrow">→</div>
+    <div class="phase-item ph-code">
+      <div class="phase-box">
+        <div class="phase-num">04</div>
+        <div class="phase-name">Code</div>
+        <div class="phase-desc">サブエージェントが各タスクを実装。タスク完了ごとにコミット</div>
+        <div class="phase-layer">Prompt Exec</div>
+      </div>
+    </div>
+    <div class="phase-arrow">→</div>
+    <div class="phase-item ph-verify">
+      <div class="phase-box">
+        <div class="phase-num">05</div>
+        <div class="phase-name">Verify</div>
+        <div class="phase-desc">TDDチェックポイント・2段階レビュー・根本原因デバッグ</div>
+        <div class="phase-layer">Harness Gate</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-title"><span class="dot-r"></span><span class="dot-a"></span><span class="dot-g"></span><span class="fn">plan.md — Harnessとしての状態管理ファイル</span></div>
+    <div class="code-body"><span class="c-cmt"># plan.md（セッション跨ぎの状態ログ）</span>
+```
+
+<span class="c-sp">## Task Breakdown</span>
+
+<span class="c-good">- [x]</span> <span class="c-str">Task 1:</span> src/auth/token.ts にJWT検証関数を追加
+<span class="c-good">- [x]</span> <span class="c-str">Task 2:</span> tests/auth/token.test.ts にユニットテスト追加
+<span class="c-bad">- [ ]</span> <span class="c-str">Task 3:</span> src/middleware/auth.ts にミドルウェア統合
+<span class="c-bad">- [ ]</span> <span class="c-str">Task 4:</span> E2Eテスト実行・動作確認
+
+<span class="c-cmt"># チェックボックスがセッション復元の唯一の手がかり</span>
+<span class="c-cmt"># → Harnessの「状態管理・リトライ制御」に相当</span></div>
+</div>
+</section>
+
+```
+<!-- 14 SKILLS -->
+<section class="section" id="skills">
+  <div class="section-header">
+    <div class="section-badge badge-sp">Skills</div>
+    <div class="section-title">14スキルと層の対応</div>
+  </div>
+
+  <p class="body-text">各スキルはmarkdownファイルとして配布され、セッション開始時にClaude Codeのコンテキストへ注入されます（Context Engineering）。同時に各スキル内に最適化されたプロンプト構造が記述されています（Prompt Engineering）。</p>
+
+  <div class="skill-grid">
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🗺️</span>
+        <span class="skill-card-name">Plan</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">タスクを2〜5分単位に分解。依存関係・エッジケース・順序を明示してから実行</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🏛️</span>
+        <span class="skill-card-name">Architect</span>
+        <span class="skill-card-layer layer-c">Context</span>
+      </div>
+      <div class="skill-card-desc">システム設計レベルの判断。コンポーネント間の関係・適用パターンを設計</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🔬</span>
+        <span class="skill-card-name">TDD</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">テスト駆動実行。並列タスク実行・コードレビュー・デバッグを構造化</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🐛</span>
+        <span class="skill-card-name">Debug</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">根本原因分析を強制。表面的な修正ではなく原因の特定から解決へ</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🌿</span>
+        <span class="skill-card-name">Branch / Worktree</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">git worktreeで作業を分離。フィーチャーブランチを自動作成・管理</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🎨</span>
+        <span class="skill-card-name">Visual Companion</span>
+        <span class="skill-card-layer layer-c">Context</span>
+      </div>
+      <div class="skill-card-desc">コーディング前にブラウザダッシュボードでモックアップ・レイアウト案を生成</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🤖</span>
+        <span class="skill-card-name">Subagent Routing</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">タスクを適切なサブエージェントへ自動振り分け。並列実行で高速化</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">💬</span>
+        <span class="skill-card-name">Clarify</span>
+        <span class="skill-card-layer layer-p">Prompt</span>
+      </div>
+      <div class="skill-card-desc">実行前に曖昧な要件を質問形式で確認。スコープ漏れ・誤解を防止</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">📡</span>
+        <span class="skill-card-name">Dispatcher</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">セッション開始時に自動起動。タスク種別を判定し適切なスキルへルーティング</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">📚</span>
+        <span class="skill-card-name">Docs</span>
+        <span class="skill-card-layer layer-c">Context</span>
+      </div>
+      <div class="skill-card-desc">ライブドキュメント参照。設計フェーズ中に最新APIドキュメントを動的取得</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🤝</span>
+        <span class="skill-card-name">Collaboration</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">チーム開発フロー。レビュー・承認・共有ワークフローを構造化</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">⚡</span>
+        <span class="skill-card-name">Execute</span>
+        <span class="skill-card-layer layer-p">Prompt</span>
+      </div>
+      <div class="skill-card-desc">プラン確定後の実行専用スキル。サブエージェントごとにタスクを割当</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">✅</span>
+        <span class="skill-card-name">Review</span>
+        <span class="skill-card-layer layer-h">Harness</span>
+      </div>
+      <div class="skill-card-desc">2段階レビュー。実装直後と統合後の2回チェックポイントを強制</div>
+    </div>
+    <div class="skill-card">
+      <div class="skill-card-head">
+        <span class="skill-card-icon">🧠</span>
+        <span class="skill-card-name">Brainstorm</span>
+        <span class="skill-card-layer layer-p">Prompt</span>
+      </div>
+      <div class="skill-card-desc">仕様化前の発散フェーズ。アイデアを検証済みスペックへ昇華させる</div>
+    </div>
+  </div>
+
+  <div class="chips">
+    <span class="chip chip-p">Prompt層スキル：3個</span>
+    <span class="chip chip-c">Context層スキル：3個</span>
+    <span class="chip chip-h">Harness層スキル：8個</span>
+  </div>
+</section>
+
+<!-- PROMPT MAPPING -->
+<section class="section" id="prompt-map">
+  <div class="section-header">
+    <div class="section-badge badge-prompt">Layer 1</div>
+    <div class="section-title">Prompt Engineering として</div>
+  </div>
+  <p class="body-text">「何もしないとClaude Codeはすぐコードを書き始める」という問題を、<strong>フェーズ別の最適プロンプト設計</strong>で解決します。</p>
+  <div class="code-wrap">
+    <div class="code-title"><span class="dot-r"></span><span class="dot-a"></span><span class="dot-g"></span><span class="fn">Superpowersなし vs あり — プロンプトの違い</span></div>
+    <div class="code-body"><span class="c-bad">❌ 素のClaude Code</span>
+```
+
+User: <span class="c-str">“ユーザー認証機能を追加して”</span>
+→ Claude: すぐにコードを書き始める（方向が間違っていてもトークンを消費）
+
+<span class="c-good">✅ Superpowers（Clarify スキル起動）</span>
+User: <span class="c-str">“ユーザー認証機能を追加して”</span>
+→ Dispatcher: clarifyスキルをロード
+→ Claude: <span class="c-sp">”””
+実装前に確認させてください：
+
+1. 認証方式は？（JWT / Session / OAuth）
+1. 既存のユーザーテーブルはありますか？
+1. パスワードリセット機能は含みますか？
+1. 対象フレームワークは？（Next.js / Express…）
+   “””</span>
+   → 合意後にDesignフェーズへ進む</div>
+   
+      </div>
+    </section>
+   
+    <!-- CONTEXT MAPPING -->
+   
+    <section class="section" id="context-map">
+      <div class="section-header">
+        <div class="section-badge badge-context">Layer 2</div>
+        <div class="section-title">Context Engineering として</div>
+      </div>
+      <p class="body-text">スキルファイル（markdown）がセッション開始時にコンテキストウィンドウへ注入されます。これは<strong>「何をモデルに見せるか」の設計</strong>そのものです。</p>
+      <div class="code-wrap">
+        <div class="code-title"><span class="dot-r"></span><span class="dot-a"></span><span class="dot-g"></span><span class="fn">CLAUDE.md — コンテキスト注入の設計</span></div>
+        <div class="code-body"><span class="c-cmt"># CLAUDE.md（プロジェクトルートに配置）</span>
+
+<span class="c-sp">## Superpowers Skills Loaded</span>
+<span class="c-key">@skills/clarify.md</span>       <span class="c-cmt"># 要件確認プロセス</span>
+<span class="c-key">@skills/architect.md</span>     <span class="c-cmt"># 設計パターン・原則</span>
+<span class="c-key">@skills/plan.md</span>          <span class="c-cmt"># タスク分解フォーマット</span>
+<span class="c-key">@skills/tdd.md</span>           <span class="c-cmt"># テスト駆動チェックリスト</span>
+<span class="c-key">@skills/dispatcher.md</span>    <span class="c-cmt"># セッション開始時ルーター</span>
+<span class="c-cmt">…（計14スキル）</span>
+
+<span class="c-sp">## Project Context</span>
+
+- Stack: Next.js 14 / Prisma / PostgreSQL
+- Branch convention: feature/xxx, fix/xxx
+- Test runner: Vitest
+
+<span class="c-cmt"># → RAGなしで「制度知識」をモデルに与えるContext Engineering</span></div>
+</div>
+</section>
+
+```
+<!-- HARNESS MAPPING -->
+<section class="section" id="harness-map">
+  <div class="section-header">
+    <div class="section-badge badge-harness">Layer 3</div>
+    <div class="section-title">Harness Engineering として</div>
+  </div>
+  <p class="body-text">Superpowersが最も強力なのはHarness層です。<strong>フェーズゲート・状態管理・セッション復元・検証チェックポイント</strong>がすべて含まれています。</p>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px;">
+    <table class="map-table">
+      <thead>
+        <tr>
+          <th>Harnessの機能</th>
+          <th>Superpowersでの実装</th>
+          <th>効果</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--harness-c)">フェーズゲート</td>
+          <td style="color:var(--muted);font-size:13px;">各フェーズ完了まで次に進めない設計</td>
+          <td style="color:var(--muted);font-size:13px;">方向誤りによるトークン浪費を防止</td>
+        </tr>
+        <tr>
+          <td style="color:var(--harness-c)">状態管理</td>
+          <td style="color:var(--muted);font-size:13px;">plan.mdのチェックボックス</td>
+          <td style="color:var(--muted);font-size:13px;">セッション途中終了からの復元が可能</td>
+        </tr>
+        <tr>
+          <td style="color:var(--harness-c)">検証チェックポイント</td>
+          <td style="color:var(--muted);font-size:13px;">タスク完了後の2段階レビュー</td>
+          <td style="color:var(--muted);font-size:13px;">バグの早期発見・品質担保</td>
+        </tr>
+        <tr>
+          <td style="color:var(--harness-c)">ルーティング</td>
+          <td style="color:var(--muted);font-size:13px;">Dispatcherによる自動スキル選択</td>
+          <td style="color:var(--muted);font-size:13px;">タスク種別に最適なワークフローへ誘導</td>
+        </tr>
+        <tr>
+          <td style="color:var(--harness-c)">リトライ制御</td>
+          <td style="color:var(--muted);font-size:13px;">git worktreeによる作業分離</td>
+          <td style="color:var(--muted);font-size:13px;">失敗時に安全にロールバック可能</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- VS MAX PLAN -->
+<section class="section" id="vs">
+  <div class="section-header">
+    <div class="section-badge badge-sp">Comparison</div>
+    <div class="section-title">Superpowers vs Max Plan</div>
+  </div>
+  <p class="body-text">同じ「トークン問題」への2つのアプローチ。<strong>削減する</strong>か、<strong>増やす</strong>か。</p>
+  <div class="vs-grid">
+    <div class="vs-card sp">
+      <div class="vs-card-title">⚡ Superpowers Plugin</div>
+      <div class="vs-item"><span class="vi-key">戦略</span>無駄なトークンを<strong style="color:var(--text)">削減</strong></div>
+      <div class="vs-item"><span class="vi-key">手段</span>フェーズゲートで方向誤りを排除</div>
+      <div class="vs-item"><span class="vi-key">コスト</span>無料（OSSプラグイン）</div>
+      <div class="vs-item"><span class="vi-key">向き</span>複雑なフィーチャー開発</div>
+      <div class="vs-item"><span class="vi-key">弱点</span>クイックバグ修正には過剰</div>
+    </div>
+    <div class="vs-badge">VS</div>
+    <div class="vs-card max">
+      <div class="vs-card-title">☁️ Claude Max Plan</div>
+      <div class="vs-item"><span class="vi-key">戦略</span>使えるトークンを<strong style="color:var(--text)">増量</strong></div>
+      <div class="vs-item"><span class="vi-key">手段</span>上位プランで制限を緩和</div>
+      <div class="vs-item"><span class="vi-key">コスト</span>月額課金（有料）</div>
+      <div class="vs-item"><span class="vi-key">向き</span>大規模コードベース・長期タスク</div>
+      <div class="vs-item"><span class="vi-key">弱点</span>方向が間違えば消費も増大</div>
+    </div>
+  </div>
+  <div class="info-box">
+    <div class="ib-label">推奨</div>
+    <p>両者は<strong style="color:var(--text)">相補的</strong>です。Superpowersで無駄を排除しながら、大規模タスクにはMax Planの余裕を使う組み合わせが最も効率的。<code style="font-family:var(--mono);color:var(--purple);font-size:12px;">skip clarify</code> プレフィックスでワンライナー修正時はフェーズをバイパス可能。</p>
+  </div>
+</section>
+```
+
+  </main>
+</div>
+
+<footer>Superpowers × LLM Engineering Layers · Claude Code Plugin Analysis</footer>
+
+<script>
+  const sections = document.querySelectorAll('.section, .hero');
+  const navLinks = document.querySelectorAll('nav a');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        navLinks.forEach(a => a.classList.remove('active'));
+        const m = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (m) m.classList.add('active');
+      }
+    });
+  }, { threshold: 0.35 });
+  sections.forEach(s => { if (s.id) observer.observe(s); });
+</script>
+
+</body>
+</html>
