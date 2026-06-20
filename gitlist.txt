@@ -22,3 +22,5 @@ ai建模
 
 https://www.swe-marathon.org/
 智能体长承挑战
+
+Claude code artifacts
