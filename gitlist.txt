@@ -24,3 +24,6 @@ https://www.swe-marathon.org/
 智能体长承挑战
 
 Claude code artifacts
+
+https://github.com/daishir0/cc-rsg
+仕様書生成
