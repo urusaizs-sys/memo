@@ -27,3 +27,6 @@ Claude code artifacts
 
 https://github.com/daishir0/cc-rsg
 仕様書生成
+
+https://github.com/EricSun787/stm32-development-workflow
+STM
