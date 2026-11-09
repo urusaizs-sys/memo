@@ -64,6 +64,20 @@ https://github.com/jihe520/agent-graph
 
 https://gitee.com/greyd097/yzrt/blob/master/%E6%8B%9F%E6%80%81%E6%8C%89%E9%92%AE(%E4%BB%85%E6%BC%94%E7%A4%BA)/index.html
 
+让 Grok Bot深挖了下那个教电路的博主，挖到宝了。。   有这么多高级的交互式教程网站。。。
+
+- 教电路的：electronics-101-six.vercel.app
+- 教互联网协议的：protocol-explorer-alpha.vercel.app
+- Arduino ： learn-arduino-red.vercel.app
+- ESP32：  learn-esp32.vercel.app
+- 野外求生，甚至还教钻木取火的。。  backcountry-101.vercel.app/?lesson=bowdrill
+
+大佬是这位 -》  x.com/DilumSanjaya  
+
+
+
+
+
 
 
 
